@@ -7,7 +7,14 @@ from src.core.config import settings
 
 
 class NvidiaClient:
+    """
+    Client for interacting with NVIDIA NIM API.
+    """
+
     def __init__(self):
+        """
+        Initializes the client with configuration settings.
+        """
         self.api_key = settings.NVIDIA_API_KEY
         self.invoke_url = settings.INVOKE_URL
 
@@ -20,6 +27,20 @@ class NvidiaClient:
         top_p: float = 0.9,
         max_tokens: int = 2048,
     ) -> Any:
+        """
+        Sends a chat completion request to NVIDIA NIM.
+
+        Args:
+            messages: List of message dictionaries.
+            model: The model to use.
+            stream: Whether to stream the response.
+            temperature: Sampling temperature.
+            top_p: Nucleus sampling parameter.
+            max_tokens: Maximum tokens to generate.
+
+        Returns:
+            A generator for streaming content or the full JSON response.
+        """
         # Handle case where key might already include 'Bearer ' prefix
         auth_header = (
             self.api_key
@@ -60,6 +81,9 @@ class NvidiaClient:
     def _stream_response(
         self, response: requests.Response
     ) -> Generator[str, None, None]:
+        """
+        Generates content chunks from a streaming response.
+        """
         for line in response.iter_lines():
             if line:
                 decoded_line = line.decode("utf-8")
