@@ -1,0 +1,28 @@
+[project]
+name = "real-estate-intelligence-agent"
+version = "0.1.0"
+description = "Agente de inteligencia inmobiliaria con NVIDIA NIM y FastAPI"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "pydantic-settings",
+    "requests",
+    "python-dotenv",
+    "openai",
+]
+
+[tool.ruff]
+# Configuración centralizada de Ruff
+line-length = 88
+select = ["E", "F", "I", "N", "S", "B"]
+ignore = ["S101"] # Permitir asserts para tests
+
+[tool.ruff.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
