@@ -13,11 +13,16 @@ class PromptManager:
         self.system_prompt_path = (
             self.root_path / "src" / "prompts" / "system_prompt.md"
         )
+        self._system_prompt_cache = None
 
     def get_system_prompt(self) -> str:
         """
         Reads and combines instruction files to create the final prompt.
+        Uses a cache to avoid redundant disk reads.
         """
+        if self._system_prompt_cache:
+            return self._system_prompt_cache
+
         try:
             # 1. Read Project/Engineering rules
             with open(self.rules_path, "r", encoding="utf-8") as f:
@@ -38,6 +43,7 @@ class PromptManager:
                 f"and avoid verbosity."
             )
 
+            self._system_prompt_cache = full_prompt
             return full_prompt
 
         except FileNotFoundError:

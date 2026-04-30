@@ -1,7 +1,18 @@
+# ruff: noqa: E402
+import sys
+from pathlib import Path
+
+project_root = str(Path(__file__).parent.parent)
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 import uvicorn
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.nvidia_client import nvidia_client
+from src.core.prompt_manager import prompt_manager
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -10,12 +21,49 @@ app = FastAPI(
 )
 
 
+class ChatRequest(BaseModel):
+    """
+    Schema for a chat request.
+    """
+
+    message: str
+
+
 @app.get("/", tags=["General"])
 async def root():
     """
     Root endpoint providing a welcome message.
     """
     return {"message": f"Welcome to {settings.APP_NAME} API"}
+
+
+@app.post("/chat", tags=["Agent"])
+async def chat(request: ChatRequest):
+    """
+    Send a message to the Real Estate Intelligence Agent.
+    """
+    try:
+        system_prompt = prompt_manager.get_system_prompt()
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": request.message},
+        ]
+
+        # Non-streaming response for simpler API interaction
+        response = nvidia_client.chat_completion(messages, stream=False)
+
+        # Extract just the message content for a cleaner API response
+        try:
+            content = response["choices"][0]["message"]["content"]
+            return {"response": content}
+        except (KeyError, IndexError, TypeError):
+            return {
+                "error": "Unexpected response format from AI provider",
+                "raw": response,
+            }
+
+    except Exception as e:
+        return {"error": "Internal Server Error", "details": str(e)}
 
 
 @app.get("/health", tags=["Monitoring"])

@@ -13,10 +13,11 @@ class NvidiaClient:
 
     def __init__(self):
         """
-        Initializes the client with configuration settings.
+        Initializes the client with configuration settings and a persistent session.
         """
         self.api_key = settings.NVIDIA_API_KEY
         self.invoke_url = settings.INVOKE_URL
+        self.session = requests.Session()
 
     def chat_completion(
         self,
@@ -28,7 +29,7 @@ class NvidiaClient:
         max_tokens: int = 2048,
     ) -> Any:
         """
-        Sends a chat completion request to NVIDIA NIM.
+        Sends a chat completion request to NVIDIA NIM using a persistent session.
 
         Args:
             messages: List of message dictionaries.
@@ -63,12 +64,12 @@ class NvidiaClient:
             "chat_template_kwargs": {"enable_thinking": True},
         }
 
-        response = requests.post(
+        response = self.session.post(
             self.invoke_url,
             headers=headers,
             json=payload,
             stream=stream,
-            timeout=30,  # Added timeout for safety
+            timeout=60,  # Increased timeout for complex prompts
         )
 
         response.raise_for_status()
