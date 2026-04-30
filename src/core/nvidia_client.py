@@ -24,7 +24,7 @@ class NvidiaClient:
         messages: List[Dict[str, str]],
         model: str = settings.DEFAULT_MODEL,
         stream: bool = True,
-        temperature: float = 1.0,
+        temperature: float = 0.8,
         top_p: float = 0.9,
         max_tokens: int = 2048,
     ) -> Any:
