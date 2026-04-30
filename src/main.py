@@ -8,6 +8,7 @@ if project_root not in sys.path:
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from src.core.config import settings
@@ -29,18 +30,18 @@ class ChatRequest(BaseModel):
     message: str
 
 
-@app.get("/", tags=["General"])
+@app.get("/", tags=["UI"])
 async def root():
     """
-    Root endpoint providing a welcome message.
+    Serves the isolated Chat UI from the static folder.
     """
-    return {"message": f"Welcome to {settings.APP_NAME} API"}
+    return FileResponse("src/static/index.html")
 
 
 @app.post("/chat", tags=["Agent"])
 async def chat(request: ChatRequest):
     """
-    Send a message to the Real Estate Intelligence Agent.
+    Send a message to the Real Estate Intelligence Agent with streaming.
     """
     try:
         system_prompt = prompt_manager.get_system_prompt()
@@ -49,18 +50,16 @@ async def chat(request: ChatRequest):
             {"role": "user", "content": request.message},
         ]
 
-        # Non-streaming response for simpler API interaction
-        response = nvidia_client.chat_completion(messages, stream=False)
+        # Enable streaming at the client level
+        def stream_generator():
+            try:
+                for chunk in nvidia_client.chat_completion(messages, stream=True):
+                    if chunk:
+                        yield chunk
+            except Exception as e:
+                yield f" [Error: {str(e)}]"
 
-        # Extract just the message content for a cleaner API response
-        try:
-            content = response["choices"][0]["message"]["content"]
-            return {"response": content}
-        except (KeyError, IndexError, TypeError):
-            return {
-                "error": "Unexpected response format from AI provider",
-                "raw": response,
-            }
+        return StreamingResponse(stream_generator(), media_type="text/plain")
 
     except Exception as e:
         return {"error": "Internal Server Error", "details": str(e)}
