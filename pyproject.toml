@@ -15,12 +15,13 @@ dependencies = [
 ]
 
 [tool.ruff]
-# Configuración centralizada de Ruff
 line-length = 88
-select = ["E", "F", "I", "N", "S", "B"]
-ignore = ["S101"] # Permitir asserts para tests
 
-[tool.ruff.isort]
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "S", "B"]
+ignore = ["S101"]
+
+[tool.ruff.lint.isort]
 known-first-party = ["src"]
 
 [tool.ruff.format]
