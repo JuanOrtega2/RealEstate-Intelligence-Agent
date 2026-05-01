@@ -22,12 +22,15 @@ app = FastAPI(
 )
 
 
+from typing import Dict, List
+
+
 class ChatRequest(BaseModel):
     """
-    Schema for a chat request.
+    Schema for a chat request including conversation history.
     """
 
-    message: str
+    messages: List[Dict[str, str]]
 
 
 @app.get("/", tags=["UI"])
@@ -41,19 +44,20 @@ async def root():
 @app.post("/chat", tags=["Agent"])
 async def chat(request: ChatRequest):
     """
-    Send a message to the Real Estate Intelligence Agent with streaming.
+    Send a conversation history to the Real Estate Intelligence Agent with streaming.
     """
     try:
         system_prompt = prompt_manager.get_system_prompt()
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.message},
-        ]
+
+        # Prepend system prompt to the beginning of the history
+        full_messages = [
+            {"role": "system", "content": system_prompt}
+        ] + request.messages
 
         # Enable streaming at the client level
         def stream_generator():
             try:
-                for chunk in nvidia_client.chat_completion(messages, stream=True):
+                for chunk in nvidia_client.chat_completion(full_messages, stream=True):
                     if chunk:
                         yield chunk
             except Exception as e:

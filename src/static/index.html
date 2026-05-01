@@ -231,6 +231,9 @@
         const box = document.getElementById('chat-box');
         const typing = document.getElementById('typing');
 
+        // Memoria de la conversación
+        let conversationHistory = [];
+
         function addMessage(text, isUser) {
             const msg = document.createElement('div');
             msg.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
@@ -249,10 +252,14 @@
             if (!text) return;
 
             addMessage(text, true);
+
+            // Añadir al historial
+            conversationHistory.push({ role: "user", content: text });
+
             input.value = '';
             typing.style.display = 'block';
 
-            // Create AI message placeholder
+            // Marcador de posición para la IA
             const aiMsg = document.createElement('div');
             aiMsg.className = 'message ai-message';
             box.appendChild(aiMsg);
@@ -260,10 +267,14 @@
             let fullText = '';
 
             try {
+                // Implementación de Ventana Deslizante (Opción 3 parcial)
+                // Solo enviamos los últimos 20 mensajes para no saturar
+                const historyToSend = conversationHistory.slice(-20);
+
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ messages: historyToSend })
                 });
 
                 const reader = response.body.getReader();
@@ -277,10 +288,13 @@
                     const chunk = decoder.decode(value, { stream: true });
                     fullText += chunk;
 
-                    // Render current Markdown progress
                     aiMsg.innerHTML = marked.parse(fullText);
                     box.scrollTop = box.scrollHeight;
                 }
+
+                // Añadir respuesta de la IA al historial
+                conversationHistory.push({ role: "assistant", content: fullText });
+
             } catch (err) {
                 typing.style.display = 'none';
                 aiMsg.innerText = 'Error de conexión con el servidor.';
