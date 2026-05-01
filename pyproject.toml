@@ -12,6 +12,7 @@ dependencies = [
     "requests",
     "python-dotenv",
     "openai",
+    "mcp>=1.27.0",
 ]
 
 [tool.ruff]
