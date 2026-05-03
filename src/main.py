@@ -96,6 +96,15 @@ async def chat(request: ChatRequest):
                         # Execute our Python function
                         result = await call_mcp_tool(call["name"], args)
 
+                        # Extract text content from MCP result for the LLM
+                        result_content = ""
+                        if hasattr(result, "content"):
+                            result_content = "\n".join(
+                                [c.text for c in result.content if hasattr(c, "text")]
+                            )
+                        else:
+                            result_content = str(result)
+
                         # Update history with the tool call and the result
                         full_messages.append(
                             {
@@ -118,7 +127,7 @@ async def chat(request: ChatRequest):
                                 "role": "tool",
                                 "name": call["name"],
                                 "tool_call_id": call["id"],
-                                "content": json.dumps(result),
+                                "content": result_content,
                             }
                         )
 

@@ -62,7 +62,7 @@ class NvidiaClient:
             headers=headers,
             json=payload,
             stream=stream,
-            timeout=60,
+            timeout=120,
         )
 
         response.raise_for_status()

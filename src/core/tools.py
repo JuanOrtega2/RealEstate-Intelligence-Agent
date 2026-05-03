@@ -1,8 +1,9 @@
 from typing import Any, Dict
 
 from src.core.mcp import mcp
+from src.core.models import InvestmentAnalysisInput
 
-# Master data tables extracted from the methodology Excel
+# Master data tables for Spanish market
 ITP_RATES = {
     "Andalucía": 0.08,
     "Aragón": 0.08,
@@ -34,7 +35,6 @@ IRPF_TRAMS = [
 ]
 
 
-@mcp.tool()
 def get_irpf_rate(salary: float) -> float:
     """Returns the IRPF tax bracket based on the annual gross salary."""
     for tram in IRPF_TRAMS:
@@ -43,25 +43,25 @@ def get_irpf_rate(salary: float) -> float:
     return 0.45
 
 
-@mcp.tool()
 def calculate_mortgage_details(
     amount: float, annual_rate: float, years: int
 ) -> Dict[str, float]:
     """Calculates the monthly payment and first-year amortization (French System)."""
-    if amount <= 0:
+    if amount <= 0 or years <= 0:
         return {"monthly_payment": 0, "annual_interest": 0, "annual_amortization": 0}
 
     monthly_rate = annual_rate / 12
     num_payments = years * 12
 
-    # French system formula: P * (r * (1+r)^n) / ((1+r)^n - 1)
-    monthly_payment = (
-        amount
-        * (monthly_rate * (1 + monthly_rate) ** num_payments)
-        / ((1 + monthly_rate) ** num_payments - 1)
-    )
+    if monthly_rate == 0:
+        monthly_payment = amount / num_payments
+    else:
+        monthly_payment = (
+            amount
+            * (monthly_rate * (1 + monthly_rate) ** num_payments)
+            / ((1 + monthly_rate) ** num_payments - 1)
+        )
 
-    # Simplified first-year estimation (Interest and Amortization)
     remaining_balance = amount
     total_interest_year = 0
     total_amortization_year = 0
@@ -81,96 +81,99 @@ def calculate_mortgage_details(
 
 
 @mcp.tool()
-def calculate_investment_metrics(
-    purchase_price: float,
-    community: str,
-    monthly_rent: float,
-    is_new_build: bool = False,
-    reforma: float = 0,
-    agencia: float = 0,
-    notaria: float = 0,
-    registro: float = 0,
-    tasacion: float = 0,
-    gestoria: float = 0,
-    percent_financed: float = 80,
-    mortgage_years: int = 30,
-    mortgage_rate: float = 0.03,
-    ibi: float = 0,
-    comunidad_gastos: float = 0,
-    seguro: float = 0,
-    otros_gastos: float = 0,
-    salario_bruto: float = 30000,
-) -> Dict[str, Any]:
+def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
     """
-    Calculates technical and financial KPIs for a real estate investment in Spain.
+    Performs a professional Real Estate ROI analysis using structured
+    English data blocks.
 
-    IMPORTANT: This tool should ONLY be used when the user provides property
-    data (price and rent) for a financial feasibility study.
-    DO NOT use this tool for greetings or non-investment topics.
-
-    - purchase_price: Property sales price.
-    - community: Autonomous Community (CCAA) for ITP tax calculation.
-    - monthly_rent: Estimated monthly rental income.
-    - is_new_build: If True, applies 10% VAT instead of ITP tax.
-    - reforma/agencia/notaria/registro/tasacion/gestoria: Acquisition costs.
-    - ibi/comunidad_gastos/seguro/otros_gastos: Annual operating expenses.
-    - salario_bruto: Investor's annual gross salary for tax calculation.
-
-    OUTPUTS:
-    - summary: Key KPIs (Gross Yield, Net Yield, Annual Cashflow, ROCE).
-    - details: Breakdown of investment, taxes, mortgage, and net profit.
+    Inputs:
+    - property_info: Price, location, and acquisition fees.
+    - mortgage_setup: Gestoria, appraisal, etc.
+    - rental_info: Monthly rent.
+    - annual_expenses: Maintenance, taxes, insurance, vacancy.
+    - financing_info: Loan details.
     """
-    # Safety check to avoid division by zero
-    if purchase_price <= 0:
-        return {"error": "Purchase price must be > 0 to perform analysis."}
-
-    # 1. Acquisition Taxes
-    itp_rate = 0.10 if is_new_build else ITP_RATES.get(community, 0.08)
-    itp_tax = purchase_price * itp_rate
-
-    # 2. Total Investment (Capital Out)
-    total_acquisition_costs = (
-        itp_tax + notaria + registro + tasacion + gestoria + reforma + agencia
+    # 1. Tax Calculation (ITP)
+    community = data.property_info.autonomous_community
+    itp_rate = ITP_RATES.get(community, 0.08)
+    itp_tax = (
+        data.property_info.itp_ajd_paid
+        if data.property_info.itp_ajd_paid is not None
+        else (data.property_info.purchase_price * itp_rate)
     )
-    loan_amount = purchase_price * (percent_financed / 100)
-    personal_funds_entry = purchase_price * (1 - percent_financed / 100)
-    total_investment = personal_funds_entry + total_acquisition_costs
 
-    # 3. Mortgage
-    mortgage = calculate_mortgage_details(loan_amount, mortgage_rate, mortgage_years)
+    # 2. Total Initial Costs
+    acquisition_costs = (
+        itp_tax
+        + data.property_info.notary_fees
+        + data.property_info.registry_fees
+        + data.property_info.renovation_costs
+        + data.property_info.agency_commission
+        + data.mortgage_setup.management_fees
+        + data.mortgage_setup.appraisal_fees
+        + data.mortgage_setup.opening_fee
+    )
 
-    # 4. Annual Operation
-    annual_revenue = monthly_rent * 12
-    annual_operating_expenses = ibi + comunidad_gastos + seguro + otros_gastos
-    bai = annual_revenue - annual_operating_expenses
+    # 3. Financing
+    loan_amount = data.property_info.purchase_price * (
+        data.financing_info.financing_percentage / 100
+    )
+    equity = data.property_info.purchase_price - loan_amount
+    total_cash_out = equity + acquisition_costs
 
-    # 5. Taxation (Excel Formula: (BAI - Amortization) * 0.5 * IRPF_Rate)
-    irpf_rate = get_irpf_rate(salario_bruto)
-    taxable_base = bai - mortgage["annual_amortization"]
-    taxes = max(0, taxable_base * 0.5 * irpf_rate)
-    net_profit = bai - taxes
+    mortgage = {"monthly_payment": 0, "annual_interest": 0, "annual_amortization": 0}
+    if data.financing_info.mortgage_conditions:
+        mortgage = calculate_mortgage_details(
+            loan_amount,
+            data.financing_info.mortgage_conditions.annual_interest_rate,
+            data.financing_info.mortgage_conditions.term_years,
+        )
 
-    # 6. Cashflow (Rent - Op Expenses - Mortgage Payment)
-    annual_mortgage_cost = mortgage["monthly_payment"] * 12
-    annual_cashflow = annual_revenue - annual_operating_expenses - annual_mortgage_cost
+    # 4. Operations
+    vacancy_factor = (12 - data.annual_expenses.vacancy_months) / 12
+    annual_gross_rent = data.rental_info.monthly_rent * 12 * vacancy_factor
 
-    # 7. Final KPIs
-    gross_yield = (annual_revenue / purchase_price) * 100
-    net_yield = (bai / total_investment) * 100
-    roce = (net_profit / total_investment) * 100
+    operating_expenses = (
+        data.annual_expenses.community_fees
+        + data.annual_expenses.maintenance_costs
+        + data.annual_expenses.home_insurance
+        + data.annual_expenses.life_insurance
+        + data.annual_expenses.default_insurance
+        + data.annual_expenses.ibi_tax
+    )
+
+    net_operating_income = annual_gross_rent - operating_expenses
+
+    # 5. Taxation (IRPF)
+    irpf_rate = get_irpf_rate(data.investor_gross_salary)
+    taxable_income = net_operating_income - mortgage["annual_interest"]
+    annual_taxes = max(0, taxable_income * 0.5 * irpf_rate)
+    net_profit = net_operating_income - annual_taxes
+
+    # 6. Cashflow
+    annual_mortgage_payment = mortgage["monthly_payment"] * 12
+    annual_cashflow = annual_gross_rent - operating_expenses - annual_mortgage_payment
+
+    # 7. KPIs
+    gross_yield = (
+        data.rental_info.monthly_rent * 12 / data.property_info.purchase_price
+    ) * 100
+    net_yield = (net_operating_income / total_cash_out) * 100
+    roce = (net_profit / total_cash_out) * 100
 
     return {
         "summary": {
-            "gross_yield_percent": round(gross_yield, 2),
-            "net_yield_percent": round(net_yield, 2),
+            "gross_yield_percentage": round(gross_yield, 2),
+            "net_yield_percentage": round(net_yield, 2),
             "annual_cashflow": round(annual_cashflow, 2),
-            "roce_percent": round(roce, 2),
+            "roce_percentage": round(roce, 2),
         },
-        "details": {
-            "total_investment": round(total_investment, 2),
-            "monthly_mortgage": round(mortgage["monthly_payment"], 2),
-            "itp_paid": round(itp_tax, 2),
-            "taxes_paid": round(taxes, 2),
-            "net_profit_annual": round(net_profit, 2),
+        "breakdown": {
+            "total_cash_required": round(total_cash_out, 2),
+            "loan_amount": round(loan_amount, 2),
+            "monthly_mortgage_payment": round(mortgage["monthly_payment"], 2),
+            "itp_tax_paid": round(itp_tax, 2),
+            "annual_operating_expenses": round(operating_expenses, 2),
+            "annual_irpf_taxes": round(annual_taxes, 2),
         },
     }
