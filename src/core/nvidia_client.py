@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Generator, List
+from typing import Any, Dict, Generator, List, Optional
 
 import requests
 
@@ -7,20 +7,32 @@ from src.core.config import settings
 
 
 class NvidiaClient:
+    """
+    Client for interacting with NVIDIA NIM API.
+    """
+
     def __init__(self):
+        """
+        Initializes the client with configuration settings and a persistent session.
+        """
         self.api_key = settings.NVIDIA_API_KEY
         self.invoke_url = settings.INVOKE_URL
+        self.session = requests.Session()
 
     def chat_completion(
         self,
         messages: List[Dict[str, str]],
         model: str = settings.DEFAULT_MODEL,
         stream: bool = True,
-        temperature: float = 1.0,
+        temperature: float = 0.8,
         top_p: float = 0.9,
         max_tokens: int = 2048,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Any:
-        # Handle case where key might already include 'Bearer ' prefix
+        """
+        Sends a chat completion request to NVIDIA NIM using a persistent session.
+        Supports tools (function calling).
+        """
         auth_header = (
             self.api_key
             if self.api_key.startswith("Bearer ")
@@ -39,15 +51,18 @@ class NvidiaClient:
             "temperature": temperature,
             "top_p": top_p,
             "stream": stream,
-            "chat_template_kwargs": {"enable_thinking": True},
         }
 
-        response = requests.post(
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+
+        response = self.session.post(
             self.invoke_url,
             headers=headers,
             json=payload,
             stream=stream,
-            timeout=30,  # Added timeout for safety
+            timeout=60,
         )
 
         response.raise_for_status()
@@ -59,7 +74,11 @@ class NvidiaClient:
 
     def _stream_response(
         self, response: requests.Response
-    ) -> Generator[str, None, None]:
+    ) -> Generator[Dict[str, Any], None, None]:
+        """
+        Generates structured chunks from a streaming response,
+        handling both content and tool calls.
+        """
         for line in response.iter_lines():
             if line:
                 decoded_line = line.decode("utf-8")
@@ -69,9 +88,11 @@ class NvidiaClient:
                         break
                     try:
                         data = json.loads(data_str)
-                        content = data["choices"][0].get("delta", {}).get("content", "")
-                        if content:
-                            yield content
+                        delta = data["choices"][0].get("delta", {})
+
+                        # Yield the full delta to let the caller handle it
+                        if delta:
+                            yield delta
                     except json.JSONDecodeError:
                         continue
 

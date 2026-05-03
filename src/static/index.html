@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Agent - AI Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            width: 95%;
+            max-width: 1000px;
+            height: 90vh;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .chat-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        .chat-header p {
+            color: var(--accent);
+            font-size: 0.875rem;
+            font-weight: 300;
+            margin-top: 4px;
+        }
+
+        .messages-area {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--glass-border) transparent;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 16px 24px;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Estilos para Markdown dentro de los mensajes */
+        .message h1,
+        .message h2,
+        .message h3 {
+            margin: 12px 0 8px;
+            font-weight: 600;
+        }
+
+        .message p {
+            margin-bottom: 8px;
+        }
+
+        .message ul,
+        .message ol {
+            margin: 8px 0 8px 20px;
+        }
+
+        .message table {
+            border-collapse: collapse;
+            margin: 12px 0;
+            width: 100%;
+            font-size: 0.85rem;
+        }
+
+        .message th,
+        .message td {
+            border: 1px solid var(--glass-border);
+            padding: 8px;
+            text-align: left;
+        }
+
+        .message th {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: var(--accent);
+            color: #ffffff;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .ai-message {
+            align-self: flex-start;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .input-area {
+            padding: 32px;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+        }
+
+        input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 0 28px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .typing {
+            font-size: 0.85rem;
+            color: var(--accent);
+            margin-bottom: 8px;
+            display: none;
+            font-weight: 300;
+            padding: 0 32px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Real Estate Intelligence</h1>
+            <p>Expert Agent Powered by NVIDIA NIM</p>
+        </div>
+        <div class="messages-area" id="chat-box">
+            <div class="message ai-message">
+                Hola, soy tu asistente de inversión inmobiliaria. ¿En qué propiedad o métrica quieres profundizar hoy?
+            </div>
+        </div>
+        <div id="typing" class="typing">El agente está analizando la oportunidad...</div>
+        <form class="input-area" id="chat-form">
+            <input type="text" id="user-input" placeholder="Escribe tu consulta aquí..." autocomplete="off">
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <script>
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('user-input');
+        const box = document.getElementById('chat-box');
+        const typing = document.getElementById('typing');
+
+        // Memoria de la conversación
+        let conversationHistory = [];
+
+        function addMessage(text, isUser) {
+            const msg = document.createElement('div');
+            msg.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            if (isUser) {
+                msg.innerText = text;
+            } else {
+                msg.innerHTML = marked.parse(text);
+            }
+            box.appendChild(msg);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, true);
+
+            // Añadir al historial
+            conversationHistory.push({ role: "user", content: text });
+
+            input.value = '';
+            typing.style.display = 'block';
+
+            // Marcador de posición para la IA
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'message ai-message';
+            box.appendChild(aiMsg);
+
+            let fullText = '';
+
+            try {
+                // Implementación de Ventana Deslizante (Opción 3 parcial)
+                // Solo enviamos los últimos 20 mensajes para no saturar
+                const historyToSend = conversationHistory.slice(-20);
+
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: historyToSend })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                typing.style.display = 'none';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+
+                    aiMsg.innerHTML = marked.parse(fullText);
+                    box.scrollTop = box.scrollHeight;
+                }
+
+                // Añadir respuesta de la IA al historial
+                conversationHistory.push({ role: "assistant", content: fullText });
+
+            } catch (err) {
+                typing.style.display = 'none';
+                aiMsg.innerText = 'Error de conexión con el servidor.';
+            }
+        };
+    </script>
+</body>
+
+</html>

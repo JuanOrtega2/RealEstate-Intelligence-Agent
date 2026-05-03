@@ -12,6 +12,7 @@ dependencies = [
     "requests",
     "python-dotenv",
     "openai",
+    "mcp>=1.27.0",
 ]
 
 [tool.ruff]
@@ -27,3 +28,7 @@ known-first-party = ["src"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
