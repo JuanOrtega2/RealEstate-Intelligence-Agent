@@ -3,11 +3,19 @@ services:
     name: real-estate-intelligence-agent
     env: docker
     plan: free
-    region: frankfurt # Or your preferred region
+    region: frankfurt
     healthCheckPath: /health
     envVars:
       - key: NVIDIA_API_KEY
-        sync: false # You will set this manually in Render dashboard for security
+        sync: false
+      - key: APP_NAME
+        value: "Real Estate Intelligence Agent"
+      - key: DEBUG
+        value: "false"
+      - key: INVOKE_URL
+        value: "https://integrate.api.nvidia.com/v1/chat/completions"
+      - key: DEFAULT_MODEL
+        value: "meta/llama-3.1-70b-instruct"
       - key: PORT
         value: 8080
     autoDeploy: true

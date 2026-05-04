@@ -205,6 +205,8 @@ async def health_check():
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "src.main:app", host="127.0.0.1", port=settings.PORT, reload=settings.DEBUG
-    )
+    import os
+
+    # Render and other platforms provide the PORT as an env var
+    port = int(os.environ.get("PORT", settings.PORT))
+    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=settings.DEBUG)  # noqa: S104
