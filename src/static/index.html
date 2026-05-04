@@ -196,6 +196,13 @@
             transform: translateY(0) scale(0.98);
         }
 
+        button:disabled,
+        input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
         .typing {
             font-size: 0.85rem;
             color: var(--accent);
@@ -203,6 +210,32 @@
             display: none;
             font-weight: 300;
             padding: 0 32px;
+        }
+
+        /* Premium Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 3px;
+            background: transparent;
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 30%;
+            height: 100%;
+            background: var(--accent);
+            position: absolute;
+            left: -30%;
+            animation: progressMove 1.5s infinite ease-in-out;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        @keyframes progressMove {
+            0% { left: -30%; }
+            50% { left: 40%; width: 40%; }
+            100% { left: 110%; }
         }
     </style>
 </head>
@@ -212,6 +245,9 @@
         <div class="chat-header">
             <h1>Real Estate Intelligence</h1>
             <p>Expert Agent Powered by NVIDIA NIM</p>
+        </div>
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar"></div>
         </div>
         <div class="messages-area" id="chat-box">
             <div class="message ai-message">
@@ -251,15 +287,24 @@
             const text = input.value.trim();
             if (!text) return;
 
-            addMessage(text, true);
+            const progress = document.getElementById('progress-container');
 
-            // Añadir al historial
+            function setUIState(loading, statusText = "El agente está analizando la oportunidad...") {
+                userInput.disabled = loading;
+                submitBtn.disabled = loading;
+                typing.innerText = statusText;
+                typing.style.display = loading ? 'block' : 'none';
+                progress.style.display = loading ? 'block' : 'none';
+                if (!loading) userInput.focus();
+            }
+
+            addMessage(text, true);
             conversationHistory.push({ role: "user", content: text });
 
             input.value = '';
-            typing.style.display = 'block';
+            setUIState(true);
 
-            // Marcador de posición para la IA
+            // AI Placeholder
             const aiMsg = document.createElement('div');
             aiMsg.className = 'message ai-message';
             box.appendChild(aiMsg);
@@ -267,8 +312,7 @@
             let fullText = '';
 
             try {
-                // Implementación de Ventana Deslizante (Opción 3 parcial)
-                // Solo enviamos los últimos 20 mensajes para no saturar
+                // Sliding Window: Send only last 20 messages
                 const historyToSend = conversationHistory.slice(-20);
 
                 const response = await fetch('/chat', {
@@ -276,6 +320,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ messages: historyToSend })
                 });
+
+                if (!response.ok) throw new Error('Server responded with error');
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -292,12 +338,14 @@
                     box.scrollTop = box.scrollHeight;
                 }
 
-                // Añadir respuesta de la IA al historial
                 conversationHistory.push({ role: "assistant", content: fullText });
 
             } catch (err) {
+                console.error('Chat error:', err);
                 typing.style.display = 'none';
-                aiMsg.innerText = 'Error de conexión con el servidor.';
+                aiMsg.innerText = 'Error: ' + err.message;
+            } finally {
+                setUIState(false);
             }
         };
     </script>

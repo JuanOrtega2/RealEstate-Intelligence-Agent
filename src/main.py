@@ -6,6 +6,7 @@ project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+import asyncio
 import json
 from typing import Dict, List
 
@@ -35,19 +36,29 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     """
-    Warm up connections and cache data on startup to avoid 'Cold Start' latency.
+    Initialize resources and warm up connections.
+    We do it without blocking the main thread to avoid Gateway Timeouts.
     """
+    # 1. Warm up Tools Cache (fast, usually local/memory)
     try:
-        # 1. Warm up Tools Cache
         await get_tools_schema()
-
-        # 2. Warm up NVIDIA Connection (Dummy 1-token request)
-        # This pre-establishes SSL/TLS and DNS connections
-        messages = [{"role": "user", "content": "hi"}]
-        nvidia_client.chat_completion(messages, stream=False, max_tokens=1)
     except Exception as e:
-        # Log failure on startup
-        print(f"⚠️ Warm-up failed: {e}")
+        print(f"⚠️ Tools cache warm-up failed: {e}")
+
+    # 2. Warm up NVIDIA Connection in background
+    # This allows the app to start accepting requests immediately
+    asyncio.create_task(background_warmup())
+
+
+async def background_warmup():
+    """Perform connection warming in the background."""
+    try:
+        messages = [{"role": "user", "content": "hi"}]
+        # Dummy request to pre-establish SSL/TLS
+        nvidia_client.chat_completion(messages, stream=False, max_tokens=1)
+        print("✅ NVIDIA connection warmed up in background.")
+    except Exception as e:
+        print(f"⚠️ Background warm-up failed: {e}")
 
 
 class ChatRequest(BaseModel):
@@ -65,13 +76,17 @@ async def chat(request: ChatRequest):
     Main entry point for the agent.
     """
     try:
-        # 1. Security Check (Scan the latest user message)
-        # Using index -1 is O(1) and highly efficient
+        # 1. Security Check (Scan latest message with context)
         latest_user_msg = ""
-        if request.messages and request.messages[-1]["role"] == "user":
-            latest_user_msg = request.messages[-1]["content"]
+        context = []
+        if request.messages:
+            if request.messages[-1]["role"] == "user":
+                latest_user_msg = request.messages[-1]["content"]
+                context = request.messages[:-1]  # All messages except the last one
 
-        is_safe, reason = await security_guard.check_input_safety(latest_user_msg)
+        is_safe, reason = await security_guard.check_input_safety(
+            latest_user_msg, context
+        )
         if not is_safe:
             return {"error": f"Security Alert: {reason}"}
 
@@ -98,9 +113,13 @@ async def chat(request: ChatRequest):
 
                 tool_calls = []
                 for delta in response_gen:
-                    # Show human text as it arrives
+                    # Show human text as it arrives (Filtering tool leakage)
                     if "content" in delta and delta["content"]:
-                        yield delta["content"]
+                        content = delta["content"]
+                        # Safety: If the LLM starts writing JSON or tool names, skip it
+                        if '{"name":' in content or "analyze_investment_roi" in content:
+                            continue
+                        yield content
 
                     # Catch tool calls and assemble fragments
                     if "tool_calls" in delta:
