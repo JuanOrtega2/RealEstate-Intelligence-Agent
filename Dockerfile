@@ -1,28 +1,28 @@
-# Use an official lightweight Python image with uv installed
-FROM ghcr.io/astral-sh/uv:python3.11-slim
+# 1. Usamos una imagen de Python oficial y ligera
+FROM python:3.11-slim
 
-# Set environment variables
+# 2. Copiamos el ejecutable de 'uv' desde su imagen oficial
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uv/bin/uv
+
+# 3. Configuramos el entorno
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
-
-# Set work directory
 WORKDIR /app
 
-# Enable bytecode compilation
-ENV UV_COMPILE_BYTECODE=1
-
-# Install dependencies using uv
-# We copy pyproject.toml and uv.lock first to leverage cache
+# 4. Instalamos las dependencias usando uv
+# Copiamos los archivos de configuración
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
 
-# Copy the rest of the application
+# Sincronizamos las dependencias (uv creará el entorno virtual internamente)
+RUN /uv/bin/uv sync --frozen --no-dev
+
+# 5. Copiamos el resto del código
 COPY . .
 
-# Expose the port
+# 6. Exponemos el puerto
 EXPOSE 8080
 
-# Use uv to run the application efficiently
-# 'uv run' handles the virtual environment automatically inside the container
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# 7. Ejecutamos la aplicación
+# Usamos la ruta completa a uv para evitar problemas de PATH
+CMD ["/uv/bin/uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
