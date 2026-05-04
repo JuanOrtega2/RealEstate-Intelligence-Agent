@@ -75,6 +75,7 @@ async def chat(request: ChatRequest):
     """
     Main entry point for the agent.
     """
+    print(f"📩 Incoming chat request with {len(request.messages)} messages.")
     try:
         # 1. Security Check (Scan latest message with context)
         latest_user_msg = ""
