@@ -290,12 +290,12 @@
             const progress = document.getElementById('progress-container');
 
             function setUIState(loading, statusText = "El agente está analizando la oportunidad...") {
-                userInput.disabled = loading;
-                submitBtn.disabled = loading;
+                input.disabled = loading;
+                form.querySelector('button').disabled = loading;
                 typing.innerText = statusText;
                 typing.style.display = loading ? 'block' : 'none';
                 progress.style.display = loading ? 'block' : 'none';
-                if (!loading) userInput.focus();
+                if (!loading) input.focus();
             }
 
             addMessage(text, true);
