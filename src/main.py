@@ -23,12 +23,31 @@ from src.core.mcp import (
 )
 from src.core.nvidia_client import nvidia_client
 from src.core.prompt_manager import prompt_manager
+from src.core.security import security_guard
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI Agent for technical and financial real estate analysis.",
     version="0.1.0",
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Warm up connections and cache data on startup to avoid 'Cold Start' latency.
+    """
+    try:
+        # 1. Warm up Tools Cache
+        await get_tools_schema()
+
+        # 2. Warm up NVIDIA Connection (Dummy 1-token request)
+        # This pre-establishes SSL/TLS and DNS connections
+        messages = [{"role": "user", "content": "hi"}]
+        nvidia_client.chat_completion(messages, stream=False, max_tokens=1)
+    except Exception as e:
+        # Log failure on startup
+        print(f"⚠️ Warm-up failed: {e}")
 
 
 class ChatRequest(BaseModel):
@@ -46,10 +65,24 @@ async def chat(request: ChatRequest):
     Main entry point for the agent.
     """
     try:
+        # 1. Security Check (Scan the latest user message)
+        # Using index -1 is O(1) and highly efficient
+        latest_user_msg = ""
+        if request.messages and request.messages[-1]["role"] == "user":
+            latest_user_msg = request.messages[-1]["content"]
+
+        is_safe, reason = await security_guard.check_input_safety(latest_user_msg)
+        if not is_safe:
+            return {"error": f"Security Alert: {reason}"}
+
+        # 2. Prepare conversation history
+        # We wrap the user input in XML tags to separate data from instructions
         system_prompt = prompt_manager.get_system_prompt()
-        full_messages = [
-            {"role": "system", "content": system_prompt}
-        ] + request.messages
+        full_messages = [{"role": "system", "content": system_prompt}]
+        for msg in request.messages:
+            if msg["role"] == "user":
+                msg["content"] = f"<user_input>\n{msg['content']}\n</user_input>"
+            full_messages.append(msg)
 
         async def stream_generator():
             try:
@@ -96,6 +129,15 @@ async def chat(request: ChatRequest):
                         # Execute our Python function
                         result = await call_mcp_tool(call["name"], args)
 
+                        # Extract text content from MCP result for the LLM
+                        result_content = ""
+                        if hasattr(result, "content"):
+                            result_content = "\n".join(
+                                [c.text for c in result.content if hasattr(c, "text")]
+                            )
+                        else:
+                            result_content = str(result)
+
                         # Update history with the tool call and the result
                         full_messages.append(
                             {
@@ -118,7 +160,7 @@ async def chat(request: ChatRequest):
                                 "role": "tool",
                                 "name": call["name"],
                                 "tool_call_id": call["id"],
-                                "content": json.dumps(result),
+                                "content": result_content,
                             }
                         )
 

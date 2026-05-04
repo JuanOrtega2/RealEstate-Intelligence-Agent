@@ -1,4 +1,5 @@
 import json
+from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -29,30 +30,59 @@ def analyze_investment_prompt():
     """Master template for performing a real estate investment analysis."""
     return """Act as a Senior Investment Analyst.
     Follow these steps:
-    1. Check config://itp-rates resources to ensure the correct tax rate.
-    2. Use the calculate_investment_metrics tool with the provided data.
-    3. If salary or fixed expenses are missing, request them from the user.
-    4. Present a professional report including Gross/Net Yield, Cashflow, and ROCE."""
+    1. Gather data across the 5 Pillars: Property, Mortgage, Rental, Expenses,
+       and Financing.
+    2. Consult config://itp-rates resources to confirm the tax rate.
+    3. Use the analyze_investment_roi tool once data is gathered or
+       estimates are authorized.
+    4. Present a professional report including Yield, Cashflow, and ROCE."""
 
 
-# --- BACKEND HELPERS (Now Async) ---
+# Global cache for tools schema to avoid repeated introspection and resolution
+_cached_tools_schema: Optional[List[Dict[str, Any]]] = None
+
+
 async def get_tools_schema():
-    """Extracts JSON schemas from tools registered in FastMCP for external API calls."""
+    """
+    Extracts inlined JSON schemas from tools for LLM compatibility
+    (resolving $refs) with caching.
+    """
+    global _cached_tools_schema
+    if _cached_tools_schema is not None:
+        return _cached_tools_schema
+
+    def resolve_refs(schema: Any, defs: Dict[str, Any]) -> Any:
+        if isinstance(schema, dict):
+            if "$ref" in schema:
+                ref_key = schema["$ref"].split("/")[-1]
+                return resolve_refs(defs[ref_key], defs)
+            return {k: resolve_refs(v, defs) for k, v in schema.items()}
+        elif isinstance(schema, list):
+            return [resolve_refs(v, defs) for v in schema]
+        return schema
+
     schemas = []
-    # FastMCP.list_tools() is a coroutine, we must await it
     tools = await mcp.list_tools()
     for tool in tools:
+        raw_schema = tool.inputSchema
+        definitions = raw_schema.get("$defs", {})
+        inlined_parameters = resolve_refs(raw_schema, definitions)
+        if "$defs" in inlined_parameters:
+            del inlined_parameters["$defs"]
+
         schemas.append(
             {
                 "type": "function",
                 "function": {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": tool.inputSchema,
+                    "parameters": inlined_parameters,
                 },
             }
         )
-    return schemas
+
+    _cached_tools_schema = schemas
+    return _cached_tools_schema
 
 
 async def call_mcp_tool(name: str, args: dict):
