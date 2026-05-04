@@ -7,13 +7,12 @@ load_dotenv()
 class Settings(BaseSettings):
     """
     Application configuration settings using Pydantic Settings.
-    Loads variables from .env file or environment variables.
+    Loads variables from .env file.
     """
 
-    # Optional for testing, but required for production LLM calls
-    NVIDIA_API_KEY: str = ""
+    NVIDIA_API_KEY: str
     INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
-    DEFAULT_MODEL: str = "google/gemma-4-31b-it"
+    DEFAULT_MODEL: str = "google/gemma-4-31b-it"  # Exact model from user snippet
 
     APP_NAME: str = "RealEstateIntelligenceAgent"
     DEBUG: bool = True
