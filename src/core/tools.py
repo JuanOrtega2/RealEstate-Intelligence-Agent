@@ -83,17 +83,10 @@ def calculate_mortgage_details(
 @mcp.tool()
 def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
     """
-    Performs a professional Real Estate ROI analysis using structured
-    English data blocks.
-
-    Inputs:
-    - property_info: Price, location, and acquisition fees.
-    - mortgage_setup: Gestoria, appraisal, etc.
-    - rental_info: Monthly rent.
-    - annual_expenses: Maintenance, taxes, insurance, vacancy.
-    - financing_info: Loan details.
+    Performs a deep Real Estate ROI analysis with all financial metrics
+    for the Spanish market.
     """
-    # 1. Tax Calculation (ITP)
+    # 1. Acquisition Costs
     community = data.property_info.autonomous_community
     itp_rate = ITP_RATES.get(community, 0.08)
     itp_tax = (
@@ -102,8 +95,7 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
         else (data.property_info.purchase_price * itp_rate)
     )
 
-    # 2. Total Initial Costs
-    acquisition_costs = (
+    total_initial_expenses = (
         itp_tax
         + data.property_info.notary_fees
         + data.property_info.registry_fees
@@ -114,12 +106,12 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
         + data.mortgage_setup.opening_fee
     )
 
-    # 3. Financing
+    # 2. Financing Details
     loan_amount = data.property_info.purchase_price * (
         data.financing_info.financing_percentage / 100
     )
-    equity = data.property_info.purchase_price - loan_amount
-    total_cash_out = equity + acquisition_costs
+    equity_invested = data.property_info.purchase_price - loan_amount
+    total_cash_out = equity_invested + total_initial_expenses
 
     mortgage = {"monthly_payment": 0, "annual_interest": 0, "annual_amortization": 0}
     if data.financing_info.mortgage_conditions:
@@ -129,11 +121,11 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
             data.financing_info.mortgage_conditions.term_years,
         )
 
-    # 4. Operations
+    # 3. Income and Operating Expenses
     vacancy_factor = (12 - data.annual_expenses.vacancy_months) / 12
-    annual_gross_rent = data.rental_info.monthly_rent * 12 * vacancy_factor
+    annual_gross_income = data.rental_info.monthly_rent * 12 * vacancy_factor
 
-    operating_expenses = (
+    annual_op_expenses = (
         data.annual_expenses.community_fees
         + data.annual_expenses.maintenance_costs
         + data.annual_expenses.home_insurance
@@ -142,38 +134,48 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
         + data.annual_expenses.ibi_tax
     )
 
-    net_operating_income = annual_gross_rent - operating_expenses
+    net_operating_income = annual_gross_income - annual_op_expenses
 
-    # 5. Taxation (IRPF)
+    # 4. Taxation (IRPF)
+    # Applying 50% reduction for long-term rental in Spain
     irpf_rate = get_irpf_rate(data.investor_gross_salary)
-    taxable_income = net_operating_income - mortgage["annual_interest"]
-    annual_taxes = max(0, taxable_income * 0.5 * irpf_rate)
-    net_profit = net_operating_income - annual_taxes
+    taxable_profit = net_operating_income - mortgage["annual_interest"]
+    annual_taxes = max(0, taxable_profit * 0.5 * irpf_rate)
+    net_profit_after_taxes = net_operating_income - annual_taxes
 
-    # 6. Cashflow
-    annual_mortgage_payment = mortgage["monthly_payment"] * 12
-    annual_cashflow = annual_gross_rent - operating_expenses - annual_mortgage_payment
+    # 5. Debt Service and Cashflow
+    annual_debt_service = mortgage["monthly_payment"] * 12
+    annual_cashflow = annual_gross_income - annual_op_expenses - annual_debt_service
 
-    # 7. KPIs
-    gross_yield = (
-        data.rental_info.monthly_rent * 12 / data.property_info.purchase_price
-    ) * 100
+    # 6. Advanced KPIs
+    gross_yield = (annual_gross_income / data.property_info.purchase_price) * 100
     net_yield = (net_operating_income / total_cash_out) * 100
-    roce = (net_profit / total_cash_out) * 100
+    roce = (net_profit_after_taxes / total_cash_out) * 100
+
+    # Payback period (Years to recover equity)
+    payback_years = (
+        total_cash_out / annual_cashflow if annual_cashflow > 0 else float("inf")
+    )
 
     return {
-        "summary": {
-            "gross_yield_percentage": round(gross_yield, 2),
-            "net_yield_percentage": round(net_yield, 2),
+        "kpis": {
+            "gross_yield": round(gross_yield, 2),
+            "net_yield": round(net_yield, 2),
             "annual_cashflow": round(annual_cashflow, 2),
-            "roce_percentage": round(roce, 2),
+            "roce": round(roce, 2),
+            "payback_years": round(payback_years, 1),
+        },
+        "taxation": {
+            "marginal_irpf_rate": round(irpf_rate * 100, 2),
+            "annual_taxes": round(annual_taxes, 2),
+            "taxable_profit_before_reduction": round(taxable_profit, 2),
         },
         "breakdown": {
-            "total_cash_required": round(total_cash_out, 2),
-            "loan_amount": round(loan_amount, 2),
-            "monthly_mortgage_payment": round(mortgage["monthly_payment"], 2),
-            "itp_tax_paid": round(itp_tax, 2),
-            "annual_operating_expenses": round(operating_expenses, 2),
-            "annual_irpf_taxes": round(annual_taxes, 2),
+            "annual_gross_income": round(annual_gross_income, 2),
+            "net_operating_income_before_taxes": round(net_operating_income, 2),
+            "annual_mortgage_amortization": round(mortgage["annual_amortization"], 2),
+            "annual_mortgage_interest": round(mortgage["annual_interest"], 2),
+            "total_initial_cash_required": round(total_cash_out, 2),
+            "net_profit_after_taxes": round(net_profit_after_taxes, 2),
         },
     }
