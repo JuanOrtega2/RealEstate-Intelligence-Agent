@@ -9,6 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Inject dummy environment variables for testing
+    env:
+      NVIDIA_API_KEY: "dummy_key_for_ci_tests"
+
     steps:
       - uses: actions/checkout@v4
 

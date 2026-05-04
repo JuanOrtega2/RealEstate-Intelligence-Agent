@@ -3,7 +3,7 @@ import os
 import sys
 from typing import Any, Dict
 
-# Añadir la raíz del proyecto al PYTHONPATH automáticamente
+# Automatically add the project root to PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 from src.core.nvidia_client import nvidia_client  # noqa: E402
