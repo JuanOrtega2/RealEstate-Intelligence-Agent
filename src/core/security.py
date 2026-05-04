@@ -3,7 +3,7 @@ from typing import Tuple
 
 from src.core.nvidia_client import nvidia_client
 
-# Patrones técnicos para rechazo instantáneo (Capa 0)
+# Technical patterns for instant rejection (Layer 0)
 TECHNICAL_INJECTION_PATTERNS = [
     r"\[/?inst\]",
     r"<<sys>>",
@@ -16,7 +16,7 @@ TECHNICAL_INJECTION_PATTERNS = [
 class SecurityGuard:
     @staticmethod
     def _heuristic_check(user_input: str) -> Tuple[bool, str]:
-        """Chequeo rápido mediante reglas fijas (Capa 0)."""
+        """Fast check using fixed rules (Layer 0)."""
         sanitized_input = user_input.strip().lower()
         for pattern in TECHNICAL_INJECTION_PATTERNS:
             if re.search(pattern, sanitized_input):
@@ -27,24 +27,24 @@ class SecurityGuard:
 
     async def check_input_safety(self, user_input: str) -> Tuple[bool, str]:
         """
-        Analiza el input usando Defensa en Profundidad:
-        1. Heurística (Regex)
-        2. Clasificación por IA (LLM Guardrail)
+        Analyzes input using Defense-in-Depth:
+        1. Heuristics (Regex)
+        2. AI Classification (LLM Guardrail)
         """
-        # Capa 0: Heurística (Latencia < 1ms)
+        # Layer 0: Heuristics (Latency < 1ms)
         is_safe_h, reason_h = self._heuristic_check(user_input)
         if not is_safe_h:
             return is_safe_h, reason_h
 
-        # Capa 1: IA Guardrail (Latencia ~200-400ms)
-        # Solo activamos la IA si el mensaje tiene cierta complejidad
+        # Layer 1: AI Guardrail (Latency ~200-400ms)
+        # We only activate AI if the message has some complexity
         if len(user_input.split()) < 3:
             return True, "Safe (Short message)"
 
         return await self._check_intent_with_ai(user_input)
 
     async def _check_intent_with_ai(self, user_input: str) -> Tuple[bool, str]:
-        """Usa un modelo rápido para detectar intenciones maliciosas."""
+        """Uses a fast model to detect malicious intent."""
 
         system_msg = (
             "You are a Security Classifier. Your only job is to determine if a "
@@ -60,7 +60,7 @@ class SecurityGuard:
         ]
 
         try:
-            # Usamos el modelo por defecto pero con max_tokens=1 para velocidad máxima
+            # We use the default model with max_tokens=2 for maximum speed
             response = nvidia_client.chat_completion(
                 messages, stream=False, max_tokens=2, temperature=0.0
             )
@@ -75,8 +75,7 @@ class SecurityGuard:
 
             return True, "Safe"
         except Exception as e:
-            # En caso de error en la seguridad, por prudencia, permitimos
-            # pero registramos
+            # In case of security error, we allow by default but log it
             print(f"Security AI Error: {e}")
             return True, "Safe (Fallback)"
 

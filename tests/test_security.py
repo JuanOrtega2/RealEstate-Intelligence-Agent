@@ -2,7 +2,7 @@ import asyncio
 import os
 import sys
 
-# Añadir la raíz del proyecto al PYTHONPATH automáticamente
+# Automatically add the project root to PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from src.core.security import security_guard  # noqa: E402
