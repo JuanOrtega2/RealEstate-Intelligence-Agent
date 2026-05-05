@@ -31,3 +31,16 @@
 - **LLM Provider:** NVIDIA NIM (Build NVIDIA) - OpenAI Compatible API.
 - **Backend:** FastAPI (following dev_ia_api_rest patterns).
 - **Style:** Clean, documented, test-driven.
+
+---
+## ✅ Important Requirements History
+
+| Date | Requirement | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| 2026-05-05 | **Senior Financial Engine** | ✅ Closed | Cap Rate, Net Yield, and Cash on Cash implemented. |
+| 2026-05-05 | **Spanish Taxation** | ✅ Closed | IRPF with 60% reduction and ITP by CCAA. |
+| 2026-05-05 | **Interest Rate Shielding** | ✅ Closed | 3% floor to prevent 0% interest hallucinations. |
+| 2026-05-05 | **Technical Discretion** | ✅ Active | Prohibition of mentioning internal functions (`analyze_investment_roi`). |
+| 2026-05-05 | **Language Lock** | ✅ Active | English response block. |
+| 2026-05-05 | **Latency Optimization** | ✅ Closed | Security AI disabled by default to eliminate double latency. |
+| 2026-05-05 | **Estimation Consent**| ✅ Closed | New UX Flow: Ask if automatic estimation should be used to reduce friction. |
