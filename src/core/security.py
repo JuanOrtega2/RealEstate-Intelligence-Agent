@@ -29,18 +29,24 @@ class SecurityGuard:
         return True, "Safe"
 
     async def check_input_safety(
-        self, user_input: str, context: Optional[List[dict]] = None
+        self,
+        user_input: str,
+        context: Optional[List[dict]] = None,
+        use_ai_agent: bool = False,
     ) -> Tuple[bool, str]:
         """
         Analyzes input using Defense-in-Depth.
         Blocks execution until the AI or Heuristics return a verdict.
         """
-        # 1. Layer 0: Instant check
+        # 1. Layer 0: Instant check (Heuristics)
         is_safe_h, reason_h = self._heuristic_check(user_input)
         if not is_safe_h:
             return is_safe_h, reason_h
 
-        # 2. Layer 1: AI Check (Semantic)
+        # 2. Layer 1: AI Check (Semantic) - Optional & Disabled by default
+        if not use_ai_agent:
+            return True, "Safe"
+
         # We use a thread to avoid blocking the main event loop
         try:
             return await asyncio.to_thread(

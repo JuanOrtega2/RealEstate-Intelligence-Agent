@@ -77,25 +77,24 @@ class NvidiaClient:
         self, response: requests.Response
     ) -> Generator[Dict[str, Any], None, None]:
         """
-        Generates structured chunks from a streaming response,
-        handling both content and tool calls.
+        Generates structured chunks from a streaming response.
         """
-        for line in response.iter_lines():
-            if line:
-                decoded_line = line.decode("utf-8")
-                if decoded_line.startswith("data: "):
-                    data_str = decoded_line[len("data: ") :]
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        delta = data["choices"][0].get("delta", {})
+        for line in response.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data: "):
+                continue
 
-                        # Yield the full delta to let the caller handle it
-                        if delta:
-                            yield delta
-                    except json.JSONDecodeError:
-                        continue
+            data_str = line[len("data: ") :]
+            if data_str == "[DONE]":
+                break
+
+            try:
+                data = json.loads(data_str)
+                if "choices" in data and data["choices"]:
+                    delta = data["choices"][0].get("delta", {})
+                    if delta:
+                        yield delta
+            except (json.JSONDecodeError, KeyError):
+                continue
 
 
 nvidia_client = NvidiaClient()

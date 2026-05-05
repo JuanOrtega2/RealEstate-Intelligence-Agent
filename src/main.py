@@ -78,19 +78,40 @@ async def chat(request: ChatRequest):
     """
     print(f"📩 Incoming chat request with {len(request.messages)} messages.")
     try:
-        # 1. Security Check (Scan latest message with context)
+        # 1. Security Check (Capa 0)
         latest_user_msg = ""
         context = []
         if request.messages:
             if request.messages[-1]["role"] == "user":
                 latest_user_msg = request.messages[-1]["content"]
-                context = request.messages[:-1]  # All messages except the last one
+                context = request.messages[:-1]
 
         is_safe, reason = await security_guard.check_input_safety(
             latest_user_msg, context
         )
         if not is_safe:
-            return {"error": f"Security Alert: {reason}"}
+            # Never show JSON error to the user
+            error_type = reason.lower()
+            if "malicious" in error_type:
+                msg = (
+                    "🛡️ Mi sistema detecta contenido que no puedo procesar "
+                    "por seguridad. ¿Podemos centrarnos en los detalles del inmueble?"
+                )
+            elif "length" in error_type:
+                msg = (
+                    "📏 El mensaje es demasiado extenso para mi análisis actual. "
+                    "¿Podrías resumir los puntos clave de la inversión?"
+                )
+            else:
+                msg = (
+                    "🚫 No puedo procesar este mensaje específico. "
+                    "Hablemos de los números de la operación."
+                )
+
+            async def error_generator():
+                yield msg
+
+            return StreamingResponse(error_generator(), media_type="text/plain")
 
         # 2. Prepare conversation history
         # We wrap the user input in XML tags to separate data from instructions
