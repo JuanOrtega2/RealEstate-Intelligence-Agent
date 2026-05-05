@@ -338,7 +338,11 @@
                     box.scrollTop = box.scrollHeight;
                 }
 
-                conversationHistory.push({ role: "assistant", content: fullText });
+                // Do not save error messages or system notifications in history
+                const isError = fullText.includes('⚠️') || fullText.includes('⏳') || fullText.includes('🛠️') || fullText.includes('[Error:');
+                if (!isError) {
+                    conversationHistory.push({ role: "assistant", content: fullText });
+                }
 
             } catch (err) {
                 console.error('Chat error:', err);
