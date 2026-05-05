@@ -13,7 +13,7 @@ services:
       - key: DEBUG
         value: "false"
       - key: INVOKE_URL
-        value: "https://integrate.api.nvidia.com/v1"
+        value: "https://integrate.api.nvidia.com/v1/chat/completions"
       - key: DEFAULT_MODEL
         value: "meta/llama-3.1-70b-instruct"
       - key: PORT

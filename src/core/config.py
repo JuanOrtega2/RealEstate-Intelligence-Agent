@@ -12,8 +12,8 @@ class Settings(BaseSettings):
 
     NVIDIA_API_KEY: str
 
-    # Base URL (usually ends in /v1)
-    INVOKE_URL: str = "https://integrate.api.nvidia.com/v1"
+    # Full endpoint for direct HTTP requests
+    INVOKE_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
 
     # Updated to the model you requested
     DEFAULT_MODEL: str = "meta/llama-3.1-70b-instruct"
