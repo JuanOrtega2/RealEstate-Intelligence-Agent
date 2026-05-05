@@ -24,7 +24,7 @@ class SecurityGuard:
         for pattern in TECHNICAL_INJECTION_PATTERNS:
             if re.search(pattern, sanitized_input):
                 return False, f"Technical meta-command detected: {pattern}"
-        if len(user_input) > 2500:
+        if len(user_input) > 3000:
             return False, "Input exceeds safety length limits."
         return True, "Safe"
 

@@ -16,7 +16,7 @@ class PropertyData(BaseModel):
     )
     notary_fees: float = Field(0.0, description="Notary fees for the purchase")
     registry_fees: float = Field(0.0, description="Registry fees for the purchase")
-    renovation_costs: float = Field(0.0, description="Initial renovation/reform costs")
+    renovation_costs: float = Field(..., description="Initial renovation/reform costs")
     agency_commission: float = Field(0.0, description="Real estate agency commission")
 
 
@@ -39,16 +39,17 @@ class RentalData(BaseModel):
 class AnnualExpensesData(BaseModel):
     """Annual operating expenses for the property."""
 
-    community_fees: float = Field(0.0, description="Annual community fees")
-    maintenance_costs: float = Field(0.0, description="Estimated annual maintenance")
-    home_insurance: float = Field(0.0, description="Annual home insurance")
+    community_fees: float = Field(..., description="Annual community fees")
+    maintenance_costs: float = Field(..., description="Estimated annual maintenance")
+    home_insurance: float = Field(..., description="Annual home insurance")
     life_insurance: float = Field(
         0.0, description="Annual life insurance (mortgage linked)"
     )
     default_insurance: float = Field(0.0, description="Annual rental default insurance")
-    ibi_tax: float = Field(0.0, description="Annual property tax (IBI)")
+    ibi_tax: float = Field(..., description="Annual property tax (IBI)")
     vacancy_months: int = Field(
-        0, description="Number of months the property is expected to be vacant per year"
+        ...,
+        description="Number of months the property is expected to be vacant per year",
     )
 
 
@@ -98,12 +99,16 @@ class InvestmentAnalysisInput(BaseModel):
         # Fix: If the LLM sent a string instead of a dict
         if isinstance(data, str):
             try:
-                # Handle single quotes if present (sometimes Llama does this)
-                data = json.loads(data.replace("'", '"'))
+                # Use ast.literal_eval to safely parse single-quoted strings
+                import ast
+
+                data = ast.literal_eval(data)
             except Exception:
-                # Ignore parsing errors if LLM sent valid dict but invalid JSON
-                # This ensures resilience for recoverable data.
-                return data
+                # If literal_eval fails, try standard JSON
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    return data
 
         def _clean(v):
             if isinstance(v, dict):

@@ -58,15 +58,27 @@ class NvidiaClient:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
 
-        response = self.session.post(
-            self.invoke_url,
-            headers=headers,
-            json=payload,
-            stream=stream,
-            timeout=timeout,
-        )
+        import time
 
-        response.raise_for_status()
+        max_retries = 3
+        retry_delay = 1
+
+        for attempt in range(max_retries):
+            response = self.session.post(
+                self.invoke_url,
+                headers=headers,
+                json=payload,
+                stream=stream,
+                timeout=timeout,
+            )
+
+            if response.status_code == 429:
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (2**attempt))
+                    continue
+
+            response.raise_for_status()
+            break
 
         if stream:
             return self._stream_response(response)
