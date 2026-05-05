@@ -5,7 +5,7 @@ from src.core.models import InvestmentAnalysisInput
 
 # Master data tables for Spanish market
 ITP_RATES = {
-    "Andalucía": 0.08,
+    "Andalucía": 0.07,
     "Aragón": 0.08,
     "Asturias": 0.08,
     "Baleares": 0.08,
@@ -46,9 +46,17 @@ def get_irpf_rate(salary: float) -> float:
 def calculate_mortgage_details(
     amount: float, annual_rate: float, years: int
 ) -> Dict[str, float]:
-    """Calculates the monthly payment and first-year amortization (French System)."""
+    """Calculates mortgage details using the French Amortization System."""
     if amount <= 0 or years <= 0:
         return {"monthly_payment": 0, "annual_interest": 0, "annual_amortization": 0}
+
+    # Robustness: Correct percentage vs decimal
+    if annual_rate > 1:
+        annual_rate = annual_rate / 100
+
+    # Market Safety Floor: 3.0% minimum for realistic simulation
+    if amount > 0 and annual_rate <= 0:
+        annual_rate = 0.03
 
     monthly_rate = annual_rate / 12
     num_payments = years * 12
@@ -83,8 +91,30 @@ def calculate_mortgage_details(
 @mcp.tool()
 def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
     """
-    Performs a deep Real Estate ROI analysis with all financial metrics
-    for the Spanish market.
+    Performs a high-precision Real Estate ROI analysis for the Spanish market.
+
+    INPUT SPECIFICATIONS:
+    - property_info: (Required) Sales price (must be > 0), location, and initial costs.
+    - mortgage_setup: (Optional) Notary, registry, and bank fees.
+    - rental_info: (Required) Expected monthly rent (must be > 0).
+    - annual_expenses: (Mandatory) Community, IBI, and maintenance.
+    - financing_info: (Required) Financing % and mortgage conditions (term, rate).
+    - investor_gross_salary: (Critical) Used to calculate the real tax impact (IRPF).
+
+    CONSTRAINTS & RULES:
+    - annual_interest_rate: Must be > 0 if loan exists (Market: 2.5%-4.5%).
+    - purchase_price: Must be a positive float.
+    - monthly_rent: Must be a positive float.
+    - NO NULLS: Mandatory fields must always have valid floats.
+    - NO NEGATIVES: Financial inputs must be zero or positive.
+    - INTEREST RATE: If missing, tool defaults to 3.0% (Market Floor).
+
+    OUTPUT MANIFEST:
+    - kpis: gross_yield, cap_rate, net_yield, cash_on_cash, roce, payback.
+    - taxation: marginal_irpf_rate, annual_taxes, taxable_profit_legal_base.
+    - breakdown: income, opex, mortgage, amortization, initial_cash, net_cash.
+
+    This tool applies Spanish tax laws (60% IRPF reduction for rentals).
     """
     # 1. Acquisition Costs
     community = data.property_info.autonomous_community
@@ -95,7 +125,7 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
         else (data.property_info.purchase_price * itp_rate)
     )
 
-    total_initial_expenses = (
+    total_acquisition_costs = (
         itp_tax
         + data.property_info.notary_fees
         + data.property_info.registry_fees
@@ -107,11 +137,9 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
     )
 
     # 2. Financing Details
-    loan_amount = data.property_info.purchase_price * (
-        data.financing_info.financing_percentage / 100
-    )
-    equity_invested = data.property_info.purchase_price - loan_amount
-    total_cash_out = equity_invested + total_initial_expenses
+    purchase_price = data.property_info.purchase_price
+    loan_amount = purchase_price * (data.financing_info.financing_percentage / 100)
+    equity_invested = (purchase_price - loan_amount) + total_acquisition_costs
 
     mortgage = {"monthly_payment": 0, "annual_interest": 0, "annual_amortization": 0}
     if data.financing_info.mortgage_conditions:
@@ -137,45 +165,63 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
     net_operating_income = annual_gross_income - annual_op_expenses
 
     # 4. Taxation (IRPF)
-    # Applying 50% reduction for long-term rental in Spain
+    # Deductible: OPEX + Interests
+    interest = mortgage["annual_interest"]
+    taxable_profit_base = annual_gross_income - annual_op_expenses - interest
+
+    # Applying 60% reduction for long-term rental
     irpf_rate = get_irpf_rate(data.investor_gross_salary)
-    taxable_profit = net_operating_income - mortgage["annual_interest"]
-    annual_taxes = max(0, taxable_profit * 0.5 * irpf_rate)
-    net_profit_after_taxes = net_operating_income - annual_taxes
+    annual_taxes = max(0, taxable_profit_base * 0.4 * irpf_rate)
 
-    # 5. Debt Service and Cashflow
-    annual_debt_service = mortgage["monthly_payment"] * 12
-    annual_cashflow = annual_gross_income - annual_op_expenses - annual_debt_service
+    # 5. CASH FLOW (Economic view)
+    annual_mortgage_payment = mortgage["monthly_payment"] * 12
+    annual_cash_profit = net_operating_income - annual_mortgage_payment - annual_taxes
 
-    # 6. Advanced KPIs
-    gross_yield = (annual_gross_income / data.property_info.purchase_price) * 100
-    net_yield = (net_operating_income / total_cash_out) * 100
-    roce = (net_profit_after_taxes / total_cash_out) * 100
+    # 6. Final KPIs (The User's Trilogy)
+    # Cap Rate: (Ingresos - Gastos) / Precio
+    cap_rate = (net_operating_income / purchase_price) * 100
 
-    # Payback period (Years to recover equity)
+    # Net Yield: (Ingresos - Gastos - Hipoteca) / Precio
+    net_yield_base = net_operating_income - annual_mortgage_payment
+    net_yield = (net_yield_base / purchase_price) * 100
+
+    # Cash on Cash: Annual Cashflow / Initial Equity
+    coc_base = annual_cash_profit / equity_invested if equity_invested > 0 else 0
+    cash_on_cash = coc_base * 100
+
+    # ROCE (Total Return): (Cash Flow + Amortization) / Equity
+    amortization = mortgage["annual_amortization"]
+    roce_base = (
+        (annual_cash_profit + amortization) / equity_invested
+        if equity_invested > 0
+        else 0
+    )
+    roce = roce_base * 100
+
     payback_years = (
-        total_cash_out / annual_cashflow if annual_cashflow > 0 else float("inf")
+        equity_invested / annual_cash_profit if annual_cash_profit > 0 else float("inf")
     )
 
     return {
         "kpis": {
-            "gross_yield": round(gross_yield, 2),
+            "gross_yield": round((annual_gross_income / purchase_price) * 100, 2),
+            "cap_rate": round(cap_rate, 2),
             "net_yield": round(net_yield, 2),
-            "annual_cashflow": round(annual_cashflow, 2),
+            "cash_on_cash": round(cash_on_cash, 2),
             "roce": round(roce, 2),
-            "payback_years": round(payback_years, 1),
+            "payback_years": round(payback_years, 2),
         },
         "taxation": {
             "marginal_irpf_rate": round(irpf_rate * 100, 2),
             "annual_taxes": round(annual_taxes, 2),
-            "taxable_profit_before_reduction": round(taxable_profit, 2),
+            "taxable_profit_legal_base": round(taxable_profit_base, 2),
         },
         "breakdown": {
             "annual_gross_income": round(annual_gross_income, 2),
-            "net_operating_income_before_taxes": round(net_operating_income, 2),
-            "annual_mortgage_amortization": round(mortgage["annual_amortization"], 2),
-            "annual_mortgage_interest": round(mortgage["annual_interest"], 2),
-            "total_initial_cash_required": round(total_cash_out, 2),
-            "net_profit_after_taxes": round(net_profit_after_taxes, 2),
+            "net_operating_income": round(net_operating_income, 2),
+            "annual_mortgage_payment": round(annual_mortgage_payment, 2),
+            "annual_mortgage_amortization": round(amortization, 2),
+            "total_initial_cash_required": round(equity_invested, 2),
+            "net_cash_flow_after_taxes": round(annual_cash_profit, 2),
         },
     }
