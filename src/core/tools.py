@@ -93,14 +93,18 @@ def analyze_investment_roi(data: InvestmentAnalysisInput) -> Dict[str, Any]:
     """
     Performs a high-precision Real Estate ROI analysis for the Spanish market.
 
-    INPUT SPECIFICATIONS (MANDATORY):
-    - property_info: purchase_price (MUST be > 0), location.
-    - rental_info: monthly_rent (MUST be > 0).
-    - financing_info: financing_percentage, mortgage_conditions (term/rate > 0).
-    - investor_gross_salary: Used for real IRPF impact.
-    - annual_expenses: community, ibi, maintenance (Must NOT be negative).
+    INPUT SPECIFICATIONS:
+    - property_info: (Required) Sales price (must be > 0), location, and initial costs.
+    - mortgage_setup: (Optional) Notary, registry, and bank fees.
+    - rental_info: (Required) Expected monthly rent (must be > 0).
+    - annual_expenses: (Mandatory) Community, IBI, and maintenance.
+    - financing_info: (Required) Financing % and mortgage conditions (term, rate).
+    - investor_gross_salary: (Critical) Used to calculate the real tax impact (IRPF).
 
     CONSTRAINTS & RULES:
+    - annual_interest_rate: Must be > 0 if loan exists (Market: 2.5%-4.5%).
+    - purchase_price: Must be a positive float.
+    - monthly_rent: Must be a positive float.
     - NO NULLS: Mandatory fields must always have valid floats.
     - NO NEGATIVES: Financial inputs must be zero or positive.
     - INTEREST RATE: If missing, tool defaults to 3.0% (Market Floor).
