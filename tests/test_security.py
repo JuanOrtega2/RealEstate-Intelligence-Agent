@@ -42,7 +42,10 @@ async def run_security_tests():
         print(f"Testing: {case['name']}")
         print(f"Input: '{case['input']}'")
 
-        is_safe, reason = await security_guard.check_input_safety(case["input"])
+        # Force use_ai_agent=True to test the LLM guardrail properly (Evaluation)
+        is_safe, reason = await security_guard.check_input_safety(
+            case["input"], use_ai_agent=True
+        )
 
         result = "SAFE" if is_safe else "UNSAFE"
         status = "[PASS]" if result == case["expected"] else "[FAIL]"

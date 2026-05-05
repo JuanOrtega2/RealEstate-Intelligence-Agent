@@ -16,7 +16,7 @@ def test_read_root():
 
 @patch("src.main.security_guard.check_input_safety")
 def test_chat_security_block(mock_safety):
-    """Verify that the Security Guard blocks known attacks."""
+    """Verify that the Security Guard blocks known attacks with a polite pivot."""
     # Simulate guard detecting an attack
     mock_safety.return_value = (False, "Technical meta-command detected")
 
@@ -24,9 +24,8 @@ def test_chat_security_block(mock_safety):
     response = client.post("/chat", json=payload)
 
     assert response.status_code == 200
-    data = response.json()
-    assert "error" in data
-    assert "Security Alert" in data["error"]
+    # The new logic streams a polite Spanish message instead of JSON
+    assert "No puedo procesar este mensaje" in response.text
 
 
 @patch("src.main.nvidia_client.chat_completion")
