@@ -28,10 +28,11 @@ class NvidiaClient:
         top_p: float = 0.9,
         max_tokens: int = 2048,
         tools: Optional[List[Dict[str, Any]]] = None,
+        timeout: int = 120,
     ) -> Any:
         """
         Sends a chat completion request to NVIDIA NIM using a persistent session.
-        Supports tools (function calling).
+        Supports tools (function calling) and custom timeouts.
         """
         auth_header = (
             self.api_key
@@ -62,7 +63,7 @@ class NvidiaClient:
             headers=headers,
             json=payload,
             stream=stream,
-            timeout=120,
+            timeout=timeout,
         )
 
         response.raise_for_status()

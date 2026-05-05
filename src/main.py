@@ -46,8 +46,9 @@ async def startup_event():
         print(f"⚠️ Tools cache warm-up failed: {e}")
 
     # 2. Warm up NVIDIA Connection in background
-    # This allows the app to start accepting requests immediately
-    asyncio.create_task(background_warmup())
+    # Disable in local debug to save API quota
+    if not settings.DEBUG:
+        asyncio.create_task(background_warmup())
 
 
 async def background_warmup():
@@ -96,8 +97,6 @@ async def chat(request: ChatRequest):
         system_prompt = prompt_manager.get_system_prompt()
         full_messages = [{"role": "system", "content": system_prompt}]
         for msg in request.messages:
-            if msg["role"] == "user":
-                msg["content"] = f"<user_input>\n{msg['content']}\n</user_input>"
             full_messages.append(msg)
 
         async def stream_generator():
@@ -192,7 +191,22 @@ async def chat(request: ChatRequest):
                             yield final_delta["content"]
 
             except Exception as e:
-                yield f" [Error: {str(e)}]"
+                error_msg = str(e).lower()
+                if "429" in error_msg:
+                    yield (
+                        "⚠️ Estamos gestionando muchas consultas en este momento. "
+                        "Por favor, espera un minuto y vuelve a intentarlo."
+                    )
+                elif "timeout" in error_msg or "time out" in error_msg:
+                    yield (
+                        "⏳ La conexión está tardando más de lo habitual. Por favor, "
+                        "intenta enviar tu mensaje de nuevo en unos instantes."
+                    )
+                else:
+                    yield (
+                        "🛠️ He tenido un pequeño contratiempo técnico al procesar tu "
+                        "solicitud. ¿Podrías intentar enviármelo de nuevo?"
+                    )
 
         return StreamingResponse(stream_generator(), media_type="text/plain")
 
@@ -210,4 +224,4 @@ if __name__ == "__main__":
 
     # Render and other platforms provide the PORT as an env var
     port = int(os.environ.get("PORT", settings.PORT))
-    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=settings.DEBUG)  # noqa: S104
+    uvicorn.run("src.main:app", host="127.0.0.1", port=port, reload=settings.DEBUG)  # noqa: S104

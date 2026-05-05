@@ -1,3 +1,4 @@
+import json
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -88,11 +89,21 @@ class InvestmentAnalysisInput(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def handle_llm_null_quirks(cls, data: Any) -> Any:
+    def handle_llm_quirks(cls, data: Any) -> Any:
         """
         Cleans the input data coming from the LLM.
-        Replaces literal string "null" with None to prevent validation errors.
+        1. If it's a string, try to parse it as JSON.
+        2. Replaces literal string 'null' with actual None.
         """
+        # Fix: If the LLM sent a string instead of a dict
+        if isinstance(data, str):
+            try:
+                # Handle single quotes if present (sometimes Llama does this)
+                data = json.loads(data.replace("'", '"'))
+            except Exception:
+                # Ignore parsing errors if LLM sent valid dict but invalid JSON
+                # This ensures resilience for recoverable data.
+                return data
 
         def _clean(v):
             if isinstance(v, dict):
