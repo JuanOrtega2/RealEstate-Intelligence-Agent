@@ -1,62 +1,32 @@
 [
   {
     "id": 1,
-    "scenario": "Price only",
-    "user_input": "I'm looking for a property priced at $500,000",
-    "expected_behavior": "Request for additional information (city, mortgage setup, rental info, annual expenses, financing details)"
+    "scenario": "Solo precio",
+    "user_input": "Busco un piso de 200.000€",
+    "expected_behavior": "Solicitar ubicación (CCAA para impuestos) y preguntar por el barrio para estimar alquiler."
   },
   {
     "id": 2,
-    "scenario": "Price and city",
-    "user_input": "I'm looking for a property priced at $500,000 in New York",
-    "expected_behavior": "Request for additional information (mortgage setup, rental info, annual expenses, financing details)"
+    "scenario": "Precio y ciudad sin barrio",
+    "user_input": "He visto un piso de 350.000€ en Madrid",
+    "expected_behavior": "Solicitar el barrio específico de Madrid para buscar datos de mercado y preguntar por el resto de pilares (gastos, alquiler esperado)."
   },
   {
     "id": 3,
-    "scenario": "Calculate with estimates",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. Calculate with estimates",
-    "expected_behavior": "Provide a full report with estimated data (mortgage setup, rental info, annual expenses, financing details)"
+    "scenario": "Cálculo con estimaciones explícitas",
+    "user_input": "Tengo un piso de 150.000€ en Valencia, barrio Ruzafa. Calcula la rentabilidad usando tus estimaciones.",
+    "expected_behavior": "Usar la herramienta search_market_data para Ruzafa, estimar ITP de la Comunidad Valenciana y presentar el informe completo."
   },
   {
     "id": 4,
-    "scenario": "Cash payment",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. I'll pay cash",
-    "expected_behavior": "Request for additional information (rental info, annual expenses, financing details)"
+    "scenario": "Compra al contado (Sin hipoteca)",
+    "user_input": "Voy a comprar un local en Sevilla por 100.000€ al contado. ¿Es buena inversión?",
+    "expected_behavior": "Identificar que no hay hipoteca, preguntar por el alquiler esperado y gastos de comunidad/IBI en Sevilla."
   },
   {
     "id": 5,
-    "scenario": "Mortgage setup",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. I'll put 20% down",
-    "expected_behavior": "Request for additional information (rental info, annual expenses, financing details)"
-  },
-  {
-    "id": 6,
-    "scenario": "Partial data",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. The annual property taxes are $10,000 and insurance is $2,000",
-    "expected_behavior": "Request for additional information (mortgage setup, rental info, financing details)"
-  },
-  {
-    "id": 7,
-    "scenario": "Rental info",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. The rental income is $4,000 per month",
-    "expected_behavior": "Request for additional information (mortgage setup, annual expenses, financing details)"
-  },
-  {
-    "id": 8,
-    "scenario": "Annual expenses",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. The annual maintenance is $5,000 and property management is $3,000",
-    "expected_behavior": "Request for additional information (mortgage setup, rental info, financing details)"
-  },
-  {
-    "id": 9,
-    "scenario": "Financing details",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. The interest rate is 4% and loan term is 30 years",
-    "expected_behavior": "Request for additional information (mortgage setup, rental info, annual expenses)"
-  },
-  {
-    "id": 10,
-    "scenario": "Full data",
-    "user_input": "I'm looking for a property priced at $500,000 in New York. I'll put 20% down, the rental income is $4,000 per month, the annual property taxes are $10,000, insurance is $2,000, maintenance is $5,000, property management is $3,000, interest rate is 4% and loan term is 30 years",
-    "expected_behavior": "Provide a full report with the provided data"
+    "scenario": "Fuera de España (Test de restricción)",
+    "user_input": "Quiero analizar un apartamento en Lisboa por 400.000€",
+    "expected_behavior": "Rechazar cortésmente la consulta explicando que su expertise se limita exclusivamente al mercado inmobiliario español."
   }
 ]

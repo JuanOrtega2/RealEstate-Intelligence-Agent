@@ -56,7 +56,7 @@ class Judge:
             {"role": "user", "content": prompt},
         ]
 
-        response = nvidia_client.chat_completion(messages, stream=False)
+        response = await nvidia_client.achat_completion(messages, stream=False)
         content = response["choices"][0]["message"]["content"]
 
         # Clean possible markdown blocks

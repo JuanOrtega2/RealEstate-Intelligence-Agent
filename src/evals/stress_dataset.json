@@ -1,0 +1,194 @@
+[
+  {
+    "id": 101,
+    "scenario": "Zero Purchase Price",
+    "user_input": "Calcula una inversión con precio 0€, alquiler 1.000€/mes y gastos 500€/año",
+    "expected_behavior": "The agent MUST reject or flag the calculation. A purchase price of 0€ is mathematically invalid for ROI/Cap Rate. The agent should explain why and request a valid price."
+  },
+  {
+    "id": 102,
+    "scenario": "Extreme Low Price (1€)",
+    "user_input": "Piso de 1€ que alquilo por 1.000€/mes",
+    "expected_behavior": "The agent MUST flag this as unrealistic. A 1€ property does not exist in any market. The agent should warn the user about the anomalous data before proceeding."
+  },
+  {
+    "id": 103,
+    "scenario": "Zero Rent",
+    "user_input": "Precio 1.000.000€, alquiler 0€",
+    "expected_behavior": "The agent MUST acknowledge that with 0€ rent there is no rental income, making ROI analysis for rental investment meaningless. It should ask if the user intends a different strategy (e.g., capital gains)."
+  },
+  {
+    "id": 104,
+    "scenario": "Zero Interest Mortgage",
+    "user_input": "Hipoteca de 200.000€ al 0% a 30 años",
+    "expected_behavior": "The agent should note that 0% interest is unusual but mathematically valid. It should proceed with the calculation while flagging that real-world 0% mortgages are rare."
+  },
+  {
+    "id": 105,
+    "scenario": "Negative Interest Mortgage",
+    "user_input": "Hipoteca con interés negativo (-1%)",
+    "expected_behavior": "The agent MUST reject or flag negative interest rates as invalid for standard mortgage calculations. It should explain that negative rates are not applicable in this context."
+  },
+  {
+    "id": 106,
+    "scenario": "Absurd High Interest",
+    "user_input": "Hipoteca con interés del 300%",
+    "expected_behavior": "The agent MUST flag a 300% interest rate as financially inviable. It should warn the user that this rate would make any investment unprofitable and suggest verifying the data."
+  },
+  {
+    "id": 107,
+    "scenario": "Impossible Cashflow Logic",
+    "user_input": "Ingresos 20.000€, gastos 25.000€, pero el sistema dice que el cashflow es positivo. ¿Cómo puede ser?",
+    "expected_behavior": "The agent MUST confirm that if expenses exceed income, cashflow is negative. It should explain the inconsistency clearly and NOT validate a positive cashflow from those numbers."
+  },
+  {
+    "id": 108,
+    "scenario": "Negative Base / Positive Taxes",
+    "user_input": "Base imponible negativa con impuestos positivos",
+    "expected_behavior": "The agent MUST explain that a negative taxable base cannot generate positive taxes. It should clarify how IRPF works with negative rental income in Spain."
+  },
+  {
+    "id": 109,
+    "scenario": "0% IRPF Calculation",
+    "user_input": "Tipo IRPF 0% y aún así calcula impuestos",
+    "expected_behavior": "The agent MUST confirm that at 0% IRPF rate, taxes should be zero. If the system shows otherwise, there is a calculation error that should be flagged."
+  },
+  {
+    "id": 110,
+    "scenario": "100% IRPF Calculation",
+    "user_input": "Tipo IRPF 100%",
+    "expected_behavior": "The agent MUST flag that a 100% IRPF rate would consume all rental income in taxes. It should warn this is an extreme scenario and explain the impact on net returns."
+  },
+  {
+    "id": 111,
+    "scenario": "Reduction on Negative Yield",
+    "user_input": "Aplica reducción del 60% aunque el rendimiento sea negativo",
+    "expected_behavior": "The agent MUST explain that the 60% reduction for long-term rentals in Spain only applies to positive net rental income. It cannot be applied to a negative yield."
+  },
+  {
+    "id": 112,
+    "scenario": "Cap Rate with Mortgage (Wrong Logic Check)",
+    "user_input": "Calcula cap rate incluyendo la hipoteca",
+    "expected_behavior": "The agent MUST explain that Cap Rate uses NOI (Net Operating Income) and property value, NOT mortgage payments. Including the mortgage would be incorrect methodology."
+  },
+  {
+    "id": 113,
+    "scenario": "Cashflow for Cap Rate (Wrong Logic Check)",
+    "user_input": "Usa cashflow para calcular cap rate",
+    "expected_behavior": "The agent MUST clarify that Cap Rate uses NOI, not cashflow. Cashflow includes mortgage payments while Cap Rate deliberately excludes them to measure property-level performance."
+  },
+  {
+    "id": 114,
+    "scenario": "ROCE without Amortization",
+    "user_input": "Calcula ROCE sin incluir amortización",
+    "expected_behavior": "The agent MUST explain that ROCE (Return on Capital Employed) should include mortgage amortization as part of the return on invested capital. Excluding it gives an incomplete picture."
+  },
+  {
+    "id": 115,
+    "scenario": "Ambiguous Rent Period",
+    "user_input": "Alquiler 1.200 (sin especificar si es mensual o anual)",
+    "expected_behavior": "The agent MUST ask for clarification on whether 1,200€ is monthly or annual rent. It should NOT assume one or the other without confirmation."
+  },
+  {
+    "id": 116,
+    "scenario": "Extreme High Price / Low Rent",
+    "user_input": "Precio 200k y alquiler 1.200€ anual",
+    "expected_behavior": "The agent should calculate the metrics but flag that the gross rental yield (~0.6%) is extremely low compared to market standards. It should warn about the poor return."
+  },
+  {
+    "id": 117,
+    "scenario": "Metric Inconsistency (sqft vs m2)",
+    "user_input": "Superficie en pies cuadrados pero precio por m²",
+    "expected_behavior": "The agent MUST detect the unit inconsistency between square feet and square meters. It should ask for clarification or perform the conversion before any calculations."
+  },
+  {
+    "id": 118,
+    "scenario": "ROI without Price",
+    "user_input": "Calcula rentabilidad sin precio de compra",
+    "expected_behavior": "The agent MUST NOT calculate ROI without a purchase price. It should explain that the purchase price is essential for any return calculation and request it."
+  },
+  {
+    "id": 119,
+    "scenario": "ROCE without Initial Investment",
+    "user_input": "Calcula ROCE sin inversión inicial",
+    "expected_behavior": "The agent MUST NOT calculate ROCE without knowing the initial capital invested. It should request the equity amount or total investment figure."
+  },
+  {
+    "id": 120,
+    "scenario": "Amortization without Loan",
+    "user_input": "Hipoteca 0€ pero amortización 5.000€/año",
+    "expected_behavior": "The agent MUST flag the contradiction: if the mortgage is 0€, there can be no amortization payments. It should ask the user to clarify the financing structure."
+  },
+  {
+    "id": 121,
+    "scenario": "Interest higher than Installment",
+    "user_input": "Intereses mayores que la cuota total",
+    "expected_behavior": "The agent MUST explain that in a standard amortizing loan, interest cannot exceed the total installment. This indicates negative amortization which should be flagged as a data error."
+  },
+  {
+    "id": 122,
+    "scenario": "Negative Cashflow / Finite Payback",
+    "user_input": "Cashflow negativo pero payback finito",
+    "expected_behavior": "The agent MUST explain that if cashflow is consistently negative, the investment never pays back. A finite payback period with negative cashflow is a mathematical impossibility."
+  },
+  {
+    "id": 123,
+    "scenario": "Positive ROCE with Continuous Losses",
+    "user_input": "ROCE positivo con pérdidas continuas",
+    "expected_behavior": "The agent MUST flag this as inconsistent. Continuous net losses cannot produce a positive ROCE. It should identify the calculation error or data inconsistency."
+  },
+  {
+    "id": 124,
+    "scenario": "Billion Dollar Property / 1 Euro Rent",
+    "user_input": "Precio: 10.000.000.000€ alquiler: 1€ gastos: 0€",
+    "expected_behavior": "The agent should flag the extreme disproportion between price and rent. The resulting yield is effectively 0%. It should warn about the unrealistic scenario."
+  },
+  {
+    "id": 125,
+    "scenario": "Extreme Decimals",
+    "user_input": "Valores con decimales extremos (0.0000001)",
+    "expected_behavior": "The agent should handle extreme decimal precision gracefully. It should either round to meaningful values or flag that such precision is not meaningful for real estate calculations."
+  },
+  {
+    "id": 126,
+    "scenario": "0 Year Mortgage",
+    "user_input": "Hipoteca a 0 años",
+    "expected_behavior": "The agent MUST reject a 0-year mortgage term as invalid. A mortgage requires a positive term. It should ask for a valid loan duration."
+  },
+  {
+    "id": 127,
+    "scenario": "200 Year Mortgage",
+    "user_input": "Hipoteca a 200 años",
+    "expected_behavior": "The agent MUST flag a 200-year mortgage as unrealistic. While mathematically calculable, no real institution offers such terms. It should warn the user."
+  },
+  {
+    "id": 128,
+    "scenario": "Premium Zone / 0 Expenses",
+    "user_input": "Piso en zona premium con gastos 0€",
+    "expected_behavior": "The agent MUST flag that 0€ expenses in a premium zone is unrealistic. Properties always have at minimum IBI, community fees, and insurance. It should warn about underestimated costs."
+  },
+  {
+    "id": 129,
+    "scenario": "Above Market Rent",
+    "user_input": "Alquiler muy por encima del mercado",
+    "expected_behavior": "The agent should warn about vacancy risk and difficulty finding tenants at above-market rents. It should ask for the specific amount and the market reference."
+  },
+  {
+    "id": 130,
+    "scenario": "Cap Rate 2% / CoC 20% Paradox",
+    "user_input": "Esta inversión tiene cap rate 2% pero cash-on-cash 20%, explícalo",
+    "expected_behavior": "The agent MUST explain the leverage effect: a low Cap Rate combined with high Cash-on-Cash return indicates significant mortgage leverage amplifying returns on equity. It should explain both metrics correctly."
+  },
+  {
+    "id": 131,
+    "scenario": "Full Interest Return",
+    "user_input": "Los intereses se devuelven completamente, calcula el beneficio",
+    "expected_behavior": "The agent should clarify the concept and ask for context. Full interest refund is unusual and the agent should not assume the mechanism without clarification."
+  },
+  {
+    "id": 132,
+    "scenario": "The Ultimate Chaos Case",
+    "user_input": "Calcula una inversión con:\nPrecio: 0€\nAlquiler: 1.200€/mes\nGastos: -500€\nHipoteca: 200% del valor\nInterés: -3%\nPlazo: 0 años\nIRPF: 150%\nExplica todas las métricas y valida si los datos tienen sentido.",
+    "expected_behavior": "The agent MUST reject the entire dataset as invalid. Multiple contradictions: 0€ price, negative expenses, >100% financing, negative interest, 0-year term, >100% IRPF. The agent should enumerate each issue and refuse to calculate until valid data is provided."
+  }
+]
