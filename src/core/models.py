@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 class PropertyData(BaseModel):
     """Data related to the property acquisition and initial costs."""
 
-    purchase_price: float = Field(..., description="Property sales price")
+    purchase_price: float = Field(..., gt=0, description="Property sales price")
     autonomous_community: str = Field(
         ..., description="Spanish Autonomous Community for tax (ITP) calculation"
     )
@@ -33,7 +33,9 @@ class MortgageSetupData(BaseModel):
 class RentalData(BaseModel):
     """Rental income data."""
 
-    monthly_rent: float = Field(..., description="Estimated monthly rental income")
+    monthly_rent: float = Field(
+        ..., gt=0, description="Estimated monthly rental income"
+    )
 
 
 class AnnualExpensesData(BaseModel):
@@ -57,16 +59,19 @@ class MortgageConditions(BaseModel):
     """Financial conditions of the mortgage loan."""
 
     annual_interest_rate: float = Field(
-        0.0, description="Annual interest rate (decimal, e.g., 0.03 for 3%)"
+        ..., ge=0, description="Annual interest rate (e.g., 0.03 for 3%)"
     )
-    term_years: int = Field(0, description="Mortgage term in years")
+    term_years: int = Field(..., gt=0, description="Mortgage term in years")
 
 
 class FinancingData(BaseModel):
     """Data regarding how the investment is financed."""
 
     financing_percentage: float = Field(
-        80.0, description="Percentage of the purchase price financed by the bank"
+        80.0,
+        ge=0,
+        le=100,
+        description="Percentage of the purchase price financed by the bank",
     )
     equity: Optional[float] = Field(
         None, description="Equity invested (Capital propio)"

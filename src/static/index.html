@@ -270,6 +270,11 @@
         // Memoria de la conversación
         let conversationHistory = [];
 
+        // Generar un ID de sesión único para esta pestaña
+        const sessionId = sessionStorage.getItem('chat_session_id') ||
+                          Math.random().toString(36).substring(2) + Date.now().toString(36);
+        sessionStorage.setItem('chat_session_id', sessionId);
+
         function addMessage(text, isUser) {
             const msg = document.createElement('div');
             msg.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
@@ -318,7 +323,10 @@
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: historyToSend })
+                    body: JSON.stringify({
+                        messages: historyToSend,
+                        session_id: sessionId
+                    })
                 });
 
                 if (!response.ok) throw new Error('Server responded with error');

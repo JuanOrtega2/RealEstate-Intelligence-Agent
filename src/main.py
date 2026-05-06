@@ -9,8 +9,9 @@ if project_root not in sys.path:
 import asyncio
 import json
 import os
+import time
 from contextlib import asynccontextmanager
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -35,9 +36,16 @@ async def lifespan(app: FastAPI):
     Initialize resources and warm up connections.
     """
     try:
+        # Warm up tools schema (fast)
         await get_tools_schema()
+        # Pre-warm NVIDIA in background so it doesn't block startup
+        asyncio.create_task(
+            nvidia_client.achat_completion(
+                [{"role": "user", "content": "warmup"}], stream=False
+            )
+        )
     except Exception as e:
-        print(f"⚠️ Tools cache warm-up failed: {e}")
+        print(f"⚠️ Warm-up initialization failed: {e}")
     yield
 
 
@@ -54,6 +62,7 @@ SUMMARY_CACHE = {}
 
 class ChatRequest(BaseModel):
     messages: List[Dict[str, str]]
+    session_id: Optional[str] = None
 
 
 @app.get("/", tags=["UI"])
@@ -86,17 +95,27 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
 
             return StreamingResponse(error_generator(), media_type="text/plain")
 
-        # 2. Identify Conversation (for caching)
-        conv_key = "default"
-        if request.messages:
-            conv_key = str(hash(request.messages[0]["content"]))
+        # 2. Identify Conversation (Session-based)
+        conv_key = request.session_id or "default"
 
         # 3. Prepare conversation history
         system_prompt = prompt_manager.get_system_prompt()
         full_messages = [{"role": "system", "content": system_prompt}]
 
-        cached_summary = SUMMARY_CACHE.get(conv_key)
-        if cached_summary and len(request.messages) > 6:
+        # 4. Manage Session Summary (TTL Cleanup)
+        current_time = time.time()
+        # Clean sessions older than 1 hour
+        expired = [
+            k
+            for k, v in SUMMARY_CACHE.items()
+            if isinstance(v, dict) and current_time - v.get("timestamp", 0) > 3600
+        ]
+        for k in expired:
+            del SUMMARY_CACHE[k]
+
+        cached_data = SUMMARY_CACHE.get(conv_key)
+        if cached_data and isinstance(cached_data, dict) and len(request.messages) > 6:
+            cached_summary = cached_data.get("summary")
             recent_messages = request.messages[-4:]
             full_messages.append(
                 {
@@ -114,12 +133,12 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             full_assistant_content = ""
             try:
                 available_tools = await get_tools_schema()
-                response_gen = nvidia_client.chat_completion(
+                response_gen = await nvidia_client.achat_completion(
                     full_messages, tools=available_tools, stream=True
                 )
 
                 tool_calls = []
-                for delta in response_gen:
+                async for delta in response_gen:
                     if "content" in delta and delta["content"]:
                         content = delta["content"]
                         if '{"name":' in content or "analyze_investment_roi" in content:
@@ -142,10 +161,25 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
                                     tool_calls[index]["arguments"] += fn["arguments"]
 
                 if tool_calls:
-                    for call in tool_calls:
-                        args = (
-                            json.loads(call["arguments"]) if call["arguments"] else {}
-                        )
+                    # Double Security: Ignore tool calls on simple greetings
+                    # to avoid overkill and latency.
+                    last_msg = request.messages[-1]["content"].lower().strip()
+                    is_greeting = last_msg in [
+                        "hola",
+                        "hola!",
+                        "buenas",
+                        "buenos días",
+                        "buenas tardes",
+                        "hey",
+                    ]
+
+                    if not is_greeting:
+                        for call in tool_calls:
+                            args = (
+                                json.loads(call["arguments"])
+                                if call["arguments"]
+                                else {}
+                            )
 
                         # UI Feedback
                         tool_name = call["name"]
@@ -200,9 +234,10 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
                             }
                         )
 
-                    for final_delta in nvidia_client.chat_completion(
+                    second_response_gen = await nvidia_client.achat_completion(
                         full_messages, stream=True
-                    ):
+                    )
+                    async for final_delta in second_response_gen:
                         if "content" in final_delta and final_delta["content"]:
                             full_assistant_content += final_delta["content"]
                             yield final_delta["content"]
@@ -242,14 +277,16 @@ async def update_conversation_summary(conv_key: str, messages: list):
         context = "\n".join(
             [f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages]
         )
-        summary_response = await asyncio.to_thread(
-            nvidia_client.chat_completion,
+        summary_response = await nvidia_client.achat_completion(
             [{"role": "user", "content": f"{summary_prompt}\n{context}"}],
             stream=False,
             max_tokens=150,
             temperature=0.0,
         )
-        SUMMARY_CACHE[conv_key] = summary_response["choices"][0]["message"]["content"]
+        SUMMARY_CACHE[conv_key] = {
+            "summary": summary_response["choices"][0]["message"]["content"],
+            "timestamp": time.time(),
+        }
     except Exception as e:
         print(f"Background summary failed: {e}")
 

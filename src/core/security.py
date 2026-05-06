@@ -1,8 +1,5 @@
-import asyncio
 import re
 from typing import List, Optional, Tuple
-
-import requests
 
 from src.core.nvidia_client import nvidia_client
 
@@ -47,19 +44,16 @@ class SecurityGuard:
         if not use_ai_agent:
             return True, "Safe"
 
-        # We use a thread to avoid blocking the main event loop
         try:
-            return await asyncio.to_thread(
-                self._check_intent_with_ai, user_input, context
-            )
+            return await self._check_intent_with_ai_async(user_input, context)
         except Exception as e:
             print(f"⚠️ Security Guard Error: {e}. Falling back to SAFE.")
             return True, "Safe (Fallback)"
 
-    def _check_intent_with_ai(
+    async def _check_intent_with_ai_async(
         self, user_input: str, context: Optional[List[dict]] = None
     ) -> Tuple[bool, str]:
-        """Synchronous AI call with strict timeout."""
+        """Asynchronous AI call with strict timeout."""
         context_str = ""
         if context:
             # Last 10 messages for deep context
@@ -81,8 +75,8 @@ class SecurityGuard:
         ]
 
         try:
-            # Fast, dry request
-            response = nvidia_client.chat_completion(
+            # Fast, dry request using the async client
+            response = await nvidia_client.achat_completion(
                 messages, stream=False, max_tokens=2, temperature=0.0, timeout=5
             )
             prediction = response["choices"][0]["message"]["content"].strip().upper()
@@ -90,10 +84,10 @@ class SecurityGuard:
             if "UNSAFE" in prediction:
                 return False, "Malicious intent detected by AI."
             return True, "Safe"
-        except requests.exceptions.Timeout:
-            print("⏳ Security AI Timeout. Proceeding.")
-            return True, "Safe (Timeout)"
-        except Exception:
+        except Exception as e:
+            if "timeout" in str(e).lower():
+                print("⏳ Security AI Timeout. Proceeding.")
+                return True, "Safe (Timeout)"
             return True, "Safe (Error)"
 
 

@@ -44,3 +44,6 @@
 | 2026-05-05 | **Language Lock** | ✅ Active | English response block. |
 | 2026-05-05 | **Latency Optimization** | ✅ Closed | Security AI disabled by default to eliminate double latency. |
 | 2026-05-05 | **Estimation Consent**| ✅ Closed | New UX Flow: Ask if automatic estimation should be used to reduce friction. |
+| 2026-05-06 | **Mandatory Streaming**| ✅ Closed | UX requirement: Response must be delivered chunk-by-chunk. |
+| 2026-05-06 | **Professional Humanism**| ⚠️ Active | Prohibition of robotic/stiff phrases like "I cannot process". Must sound like a senior partner. |
+| 2026-05-06 | **Session Isolation** | ✅ Closed | Implementation of `session_id` to prevent memory leaks between users. |

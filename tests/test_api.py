@@ -25,7 +25,7 @@ def test_chat_security_block(mock_safety):
 
     assert response.status_code == 200
     # The new logic streams a polite Spanish message instead of JSON
-    assert "No puedo procesar este mensaje" in response.text
+    assert "no puedo procesar este mensaje" in response.text.lower()
 
 
 @patch("src.main.nvidia_client.chat_completion")

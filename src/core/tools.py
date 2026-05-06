@@ -1,10 +1,14 @@
+import asyncio
 from typing import Any, Dict
 
-import requests
+import httpx
 from ddgs import DDGS
 
 from src.core.mcp import mcp
 from src.core.models import InvestmentAnalysisInput
+
+# Simple In-Memory Cache for Market Data to avoid redundant searches
+MARKET_DATA_CACHE = {}
 
 # Master data tables for Spanish market
 ITP_RATES = {
@@ -92,42 +96,78 @@ def calculate_mortgage_details(
 
 
 @mcp.tool()
-def search_market_data(query: str) -> str:
+async def search_market_data(query: str) -> str:
     """
-    Performs a semantic web search using DuckDuckGo to find up-to-date market data
-    (e.g., rental prices in a specific neighborhood, average yields).
-    Ideal to use when the user asks to estimate data.
+    Finds real estate market data (€/m2, rental trends, yields) via web search.
+
+    Args:
+        query (str): The search query (e.g., "alquiler barrio salamanca madrid").
+
+    Returns:
+        str: Snippets with market prices or "No market data found".
+
+    Expected Use (NO OVERKILL):
+        - ONLY call this tool if mandatory data is missing AND you need to estimate.
+        - NEVER call this for greetings or if data is already provided.
+        - DO NOT trigger this tool more than once per area.
+
+    Example:
+        Input: "alquiler m2 Tetuán Madrid"
+        Output: "Idealista: El precio medio en Tetuán es de 18,5 €/m2..."
     """
+    cache_key = query.lower().strip()
+    if cache_key in MARKET_DATA_CACHE:
+        return MARKET_DATA_CACHE[cache_key]
+
     try:
-        # SEO Hack: Force DDG to return statistical pages which contain the
-        # exact €/m2 in the snippet.
         optimized_query = f"{query} evolucion precio alquiler m2 idealista brainsre"
 
-        results = DDGS().text(optimized_query, max_results=5, region="es-es")
+        # We use a thread to avoid blocking the event loop with a sync search
+        def sync_search():
+            with DDGS() as ddgs:
+                return list(ddgs.text(optimized_query, max_results=3, region="es-es"))
+
+        results_raw = await asyncio.to_thread(sync_search)
+
+        results = []
+        for r in results_raw:
+            results.append(f"Title: {r.get('title')}\nExtract: {r.get('body')}")
+
         if not results:
             return "No market data found on the web."
 
-        extracted_info = []
-        for r in results:
-            extracted_info.append(f"Title: {r.get('title')}\nExtract: {r.get('body')}")
-
-        return "\n\n".join(extracted_info)
+        final_result = "\n\n".join(results)
+        MARKET_DATA_CACHE[cache_key] = final_result
+        return final_result
     except Exception as e:
         return f"Web search error: {str(e)}"
 
 
 @mcp.tool()
-def read_property_link(url: str) -> str:
+async def read_property_link(url: str) -> str:
     """
-    Attempts to read the content of a real estate link (e.g., Idealista, Fotocasa)
-    using the Jina Reader engine. If it fails due to anti-bot blocks, it
-    returns 'ERROR_SCRAPING_FAILED'.
+    Scrapes a real estate URL (e.g., Idealista, Fotocasa) to extract
+    price, m2, and location.
+
+    Args:
+        url (str): The full URL of the property listing to analyze.
+
+    Returns:
+        str: Raw text (first 3000 chars) or "ERROR_SCRAPING_FAILED".
+
+    Expected Use:
+        - If the tool returns "ERROR_SCRAPING_FAILED", you MUST stop
+          scraping and ask the user directly. Never hallucinate.
+
+    Example:
+        Input: "https://www.idealista.com/inmueble/101234567/"
+        Output: "### Piso en Calle Goya, Madrid. Precio: 550.000€..."
     """
     try:
         jina_url = f"https://r.jina.ai/{url}"
-        response = requests.get(jina_url, timeout=10)
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(jina_url)
 
-        # Detect blocks (403, Captcha, Access Denied)
         text = response.text
         if (
             response.status_code != 200
@@ -137,9 +177,7 @@ def read_property_link(url: str) -> str:
         ):
             return "ERROR_SCRAPING_FAILED"
 
-        return text[
-            :3000
-        ]  # Extract first 3000 characters (usually contains price and m2)
+        return text[:3000]
     except Exception:
         return "ERROR_SCRAPING_FAILED"
 

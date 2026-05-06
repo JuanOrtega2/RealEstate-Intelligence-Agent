@@ -86,6 +86,13 @@ async def get_tools_schema():
 
 
 async def call_mcp_tool(name: str, args: dict):
-    """Executes an MCP tool by name using the FastMCP engine."""
-    # FastMCP.call_tool is also a coroutine
+    """
+    Executes an MCP tool by name using the FastMCP engine.
+    Includes an adapter for Pydantic models expecting a 'data' envelope.
+    """
+    # Fix: If the tool expects a single 'data' argument but LLM sends fields at root
+    if name == "analyze_investment_roi" and "data" not in args:
+        # Wrap root fields into 'data' key for InvestmentAnalysisInput compatibility
+        args = {"data": args}
+
     return await mcp.call_tool(name, args)
